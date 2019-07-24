@@ -1,7 +1,7 @@
 # THREEi
 three.js addon for triangulation of implicit surfaces. The addon generates indexed BufferGeometries.
 
-Algorithmus nach / Algorithm based on E. Hartmann.
+###Algorithmus nach / Algorithm based on E. Hartmann.
 
 The algorithm was originally implemented in Pascal and visualized with POV-Ray.
 
