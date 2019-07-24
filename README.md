@@ -1,6 +1,8 @@
 # THREEi
 three.js addon for triangulation of implicit surfaces. The addon generates indexed BufferGeometries.
 
+### Publication in progress
+
 #### Algorithmus nach / Algorithm based on E. Hartmann.
 
 The algorithm was originally implemented in Pascal and visualized with POV-Ray.
@@ -19,9 +21,10 @@ en: https://en.wikipedia.org/wiki/Implicit_surface
 
 #### EXAMPLES
 
+genus2.png
 ![genus2.png](https://github.com/hofk/THREEi.js/blob/master/genus2.png)
 
 ---
 
-triangulation in progress:
+balls.png triangulation in progress:
 ![balls.png](https://github.com/hofk/THREEi.js/blob/master/balls.png)
