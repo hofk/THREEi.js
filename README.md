@@ -112,6 +112,18 @@ Furthermore, a suitable accuracy number e (epsilon) must be selected.
 
 If the values do not match, the Newton's method does not converge.
 
+```html
+<script src="../js/three.min.106.js"></script>
+<script src="../js/OrbitControls.js"></script>
+<script src="../js/THREEi.js"></script>
+
+<!-- rename the example
+	<script src="implicitSurface example.js"></script>
+ -->
+<script src="implicitSurface genus2.js"></script>
+
+ ```
+ 
 ```javascript
 
 const g = new THREE.BufferGeometry( );
