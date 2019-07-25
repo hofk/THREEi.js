@@ -112,4 +112,21 @@ Furthermore, a suitable accuracy number e (epsilon) must be selected.
 
 If the values do not match, the Newton's method does not converge.
 
+```javascript
 
+const g = new THREE.BufferGeometry( );
+g.createImplicitSurface = THREEi.createImplicitSurface;
+//g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc );  // parameters from implicitSurface example.js // fc, pc optional
+g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e );	// parameters from implicitSurface example.js	
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh1 = new THREE.Mesh( g, material1 );
+scene.add( mesh1 );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
+const mesh2 = new THREE.Mesh( g, material2 );
+scene.add( mesh2 );
+
+
+ ``` 
+
+---
