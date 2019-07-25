@@ -91,8 +91,6 @@ const dx = ( x, y, z ) => ( -12*x*y*( 1 - z*z ) + 4*x*( x*x + y*y ) );// PARTIAL
 const dy = ( x, y, z ) => ( 6*( y*y - x*x )*( 1 - z*z ) + 4*y*( x*x + y*y ) );// PARTIAL DERIVATE to y
 const dz = ( x, y, z ) => ( -4*y*( y*y - 3*x*x )*z + 36*z*z*z - 20*z );// PARTIAL DERIVATE to z
 
-const progressFactor = 2; // for slider
-
 const xs = 0; // x START POINT
 const ys = 3; // y START POINT
 const zs = 0; // z START POINT
@@ -105,4 +103,13 @@ const d = 0.08; // rough edge length of triangles
 
 genus2.png
 ![genus2.png](https://github.com/hofk/THREEi.js/blob/master/genus2.png)
+
+The starting point ( xs, ys ,zs ) must be close to the surface.
+
+The rough edge length of triangles d must be sufficiently small in relation to the strongest curvature. 
+
+Furthermore, a suitable accuracy number e (epsilon) must be selected.
+
+If the values do not match, the Newton's method does not converge.
+
 
