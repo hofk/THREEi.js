@@ -141,8 +141,8 @@ scene.add( mesh2 );
 
  ``` 
  
-*The addon THREEi.js capsules the function triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc ).
+*The addon THREEi.js capsules the function triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc ).*
 
-This can be copied and directly integrated into your own projects.*
+*This can be copied and directly integrated into your own projects.*
 
 ---
