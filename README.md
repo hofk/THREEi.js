@@ -24,10 +24,6 @@ en: https://en.wikipedia.org/wiki/Implicit_surface
 genus2.png
 ![genus2.png](https://github.com/hofk/THREEi.js/blob/master/genus2.png)
 
----
-
-balls.png triangulation in progress:
-![balls.png](https://github.com/hofk/THREEi.js/blob/master/balls.png)
 
 
 .................................................................... Sphere with Holes (Triangulation)  ..............................................................................
