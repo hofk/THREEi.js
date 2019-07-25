@@ -19,25 +19,12 @@ de: https://de.wikipedia.org/wiki/Implizite_Fl%C3%A4che
 
 en: https://en.wikipedia.org/wiki/Implicit_surface
 
-#### EXAMPLES
-
-genus2.png
-![genus2.png](https://github.com/hofk/THREEi.js/blob/master/genus2.png)
-
-
-
 .................................................................... Sphere with Holes (Triangulation)  ..............................................................................
 
 Sphere with arbitrarily arranged openings, circular or defined by points on the sphere.
 The geometry is realized as indexed BufferGeometry.
 
-Algorithm based on
-
-de: https://www2.mathematik.tu-darmstadt.de/~ehartmann/cdg0/cdg0n.pdf
-
-en: https://www2.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
-
-(simplified for sphere)
+Algorithm simplified and modified for sphere. 
 
 ```javascript
 
@@ -86,3 +73,14 @@ const mesh2 = new THREE.Mesh( g, material2 );
 scene.add( mesh2 );
 
  ``` 
+---
+
+.................................................................... Triangulation of Implicit Surfaces ..............................................................................
+
+Algorithm modified.
+
+#### EXAMPLE
+
+genus2.png
+![genus2.png](https://github.com/hofk/THREEi.js/blob/master/genus2.png)
+
