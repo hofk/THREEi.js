@@ -61,7 +61,7 @@ const holes = [
 	[ 0,0,  0.5,-0.8,  0.25,-0.27,  0.4,0.3,  0.3,0.72 ]
 ];
 
-g.createSphereWithHoles = THREEg.createSphereWithHoles;
+g.createSphereWithHoles = THREEi.createSphereWithHoles;
 //g.createSphereWithHoles( detail );
 g.createSphereWithHoles( detail, holes );
 
