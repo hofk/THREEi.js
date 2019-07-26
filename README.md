@@ -79,7 +79,7 @@ scene.add( mesh2 );
 
 Algorithm modified.
 
-The implicit surfaces are defined in separate js files.
+The implicit surfaces are defined in separate js files. See examples folder.
 
 #### EXAMPLE
 
