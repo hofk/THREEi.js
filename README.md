@@ -29,7 +29,7 @@ Algorithm simplified and modified for sphere.
 ```javascript
 
 const g = new THREE.BufferGeometry( );
-g.createSphereWithHoles = THREEg.createSphereWithHoles;
+g.createSphereWithHoles = THREEi.createSphereWithHoles;
 //g.createSphereWithHoles( detail );
 g.createSphereWithHoles( detail, holes );
 
