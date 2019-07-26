@@ -19,6 +19,12 @@ de: https://de.wikipedia.org/wiki/Implizite_Fl%C3%A4che
 
 en: https://en.wikipedia.org/wiki/Implicit_surface
 
+@author hofk / http://sandbox.threejs.hofk.de/ or http://sandboxthreei.threejs.hofk.de/
+
+For more efficiency.
+
+Each single geometry section between ............................. name ............................. can be deleted.
+
 .................................................................... Sphere with Holes (Triangulation)  ..............................................................................
 
 Sphere with arbitrarily arranged openings, circular or defined by points on the sphere.
