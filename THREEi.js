@@ -86,7 +86,7 @@ function buildSphereWithHoles( ) {
 	let indIdx = 0;
 	let frontPosIdx, unionIdxA, unionIdxB;
 	 
-	let front = []; // active front // front[ i ]: object { idx: 0, ang: 0, chg: true }
+	let front = []; // active front // front[ i ]: object { idx: 0, ang: 0 }
 	let partFront = []; // separated part of the active front
 	let insertFront = []; // new front points to insert into active front
 	let fronts = []; // all fronts
@@ -214,7 +214,7 @@ function buildSphereWithHoles( ) {
 		
 		for ( let i = 0; i < front.length; i ++ ) {
 			
-			if( front[ i ].chg ) {
+			if( front[ i ].ang === 0 ) {
 				
 				frontAngle( i );
 				
@@ -293,11 +293,8 @@ function buildSphereWithHoles( ) {
 			
 			indIdx += 3;
 			
-			front[ prevFront( m ) ].ang = 0;
-			front[ prevFront( m ) ].chg = true;
-			
+			front[ prevFront( m ) ].ang = 0;			
 			front[ nextFront( m ) ].ang = 0;
-			front[ nextFront( m ) ].chg = true;
 			
 		} else { // more then one triangle
 			
@@ -313,7 +310,7 @@ function buildSphereWithHoles( ) {
 				g.positions[ posIdx + 1 ] = yp / len;
 				g.positions[ posIdx + 2 ] = zp / len;
 				
-				insertFront.push( { idx: posIdx / 3, ang: 0, chg: true } );
+				insertFront.push( { idx: posIdx / 3, ang: 0 } );
 				
 				posIdx += 3;
 				
@@ -326,7 +323,6 @@ function buildSphereWithHoles( ) {
 			indIdx += 3;
 			
 			front[ prevFront( m ) ].ang = 0;
-			front[ prevFront( m ) ].chg = true;
 			
 			for ( let i = 0; i < n - 1; i ++ ) {
 				
@@ -343,7 +339,6 @@ function buildSphereWithHoles( ) {
 			g.indices[ indIdx + 2 ] = front[ nextFront( m ) ].idx;
 			
 			front[ nextFront( m ) ].ang = 0;
-			front[ nextFront( m ) ].chg = true;
 			
 			indIdx += 3;
 			
@@ -468,8 +463,6 @@ function buildSphereWithHoles( ) {
 		if ( !concave && acute ) front[ i ].ang  = 2 * Math.PI - front[ i ].ang ;
 		if ( !concave && !acute ) front[ i ].ang  = Math.PI + front[ i ].ang ;
 		
-		front[ i ].chg = false;
-		
 		if ( front[ i ].ang < 1.5 ) smallAngles.push( i );
 		
 	}
@@ -579,7 +572,7 @@ function buildSphereWithHoles( ) {
 		
 		front = [];
 		
-		front.push( { idx: 0, ang: 0, chg: true }, { idx: 1, ang: 0, chg: true }, { idx: 2, ang: 0, chg: true } );
+		front.push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );
 		fronts.push( front )
 		
 	}
@@ -615,7 +608,7 @@ function buildSphereWithHoles( ) {
 			g.positions[ posIdx + 1 ] = y1;
 			g.positions[ posIdx + 2 ] = z1;
 			
-			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0, chg: true } );
+			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
 			
 			xmin = x1 < xmin ? x1 : xmin;
 			ymin = y1 < ymin ? y1 : ymin;
@@ -656,7 +649,7 @@ function buildSphereWithHoles( ) {
 					g.positions[ posIdx + 1 ] = y / len;
 					g.positions[ posIdx + 2 ] = z / len;
 					
-					fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0, chg: true } );
+					fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
 					
 					xmin = x < xmin ? x : xmin;
 					ymin = y < ymin ? y : ymin;
@@ -754,7 +747,7 @@ function buildSphereWithHoles( ) {
 			g.positions[ posIdx + 1 ] = y;
 			g.positions[ posIdx + 2 ] = z;
 			
-			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0, chg: true } );
+			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
 			
 			xmin = x < xmin ? x : xmin;
 			ymin = y < ymin ? y : ymin;
