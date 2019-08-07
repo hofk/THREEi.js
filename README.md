@@ -100,8 +100,8 @@ const xs = 0; // x START POINT
 const ys = 3; // y START POINT
 const zs = 0; // z START POINT
 
-const e = 0.001; // epsilon 
 const d = 0.08; // rough edge length of triangles
+const e = 0.001; // epsilon 
 
 
  ``` 
@@ -118,7 +118,7 @@ Furthermore, a suitable accuracy number e (epsilon) must be selected.
 If the values do not match, the Newton's method does not converge.
 
 ```html
-<script src="../js/three.min.106.js"></script>
+<script src="../js/three.min.107.js"></script>
 <script src="../js/OrbitControls.js"></script>
 <script src="../js/THREEi.js"></script>
 
@@ -133,8 +133,20 @@ If the values do not match, the Newton's method does not converge.
 
 const g = new THREE.BufferGeometry( );
 g.createImplicitSurface = THREEi.createImplicitSurface;
-//g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc );  // parameters from implicitSurface example.js // fc, pc optional
-g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e );	// parameters from implicitSurface example.js	
+// use version (A) with opt for infinite surfaces such as cylinders and cones or for cuts
+	/*opt optional object, all properties also optional
+		{ 	
+			fc:  faces //( max. number of triangles )
+			pc:  positions // ( max. number of points )
+			b:   bounds //  array [ xMax, xMin, yMax, yMin, zMax, zMin ]
+		}
+	*/
+
+// (A) parameters from implicitSurface example.js, with object of optional parameters, contains bounds 
+g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, opt );
+
+// (B) parameters from implicitSurface example.js with some default values
+//g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e );
 
 const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
 const mesh1 = new THREE.Mesh( g, material1 );
@@ -146,8 +158,13 @@ scene.add( mesh2 );
 
  ``` 
  
-*The addon THREEi.js capsules the function triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc ).*
+*The addon THREEi.js capsules the functions 
+	triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc )
+	triangulationBounds( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc, b ) with boundaries*
 
-*This can be copied and directly integrated into your own projects.*
+*These can be copied and directly integrated into your own projects.
+
+Variant with boundaries demands some more effort, however is absolutely necessary for infinite surfaces like cylinders and cones.
+It is also required for cut surfaces.*
 
 ---
