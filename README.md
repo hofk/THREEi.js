@@ -158,13 +158,15 @@ scene.add( mesh2 );
 
  ``` 
  
-*The addon THREEi.js capsules the functions 
-	triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc )
-	triangulationBounds( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc, b ) with boundaries*
+*The addon THREEi.js capsules the functions*
 
-*These can be copied and directly integrated into your own projects.
+	*triangulation( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc )*
+	
+	*triangulationBounds( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc, b ) with boundaries*
 
-Variant with boundaries demands some more effort, however is absolutely necessary for infinite surfaces like cylinders and cones.
-It is also required for cut surfaces.*
+*These can be copied and directly integrated into your own projects.*
+
+*Variant with boundaries demands some more effort, however is absolutely necessary for infinite surfaces like cylinders and cones.*
+*It is also required for cut surfaces.*
 
 ---
