@@ -43,14 +43,14 @@ const zs = 0; // z START POINT
 //const e = 0.01; // or const e = 0.00001; // epsilon 
 //const d = 0.08; // rough edge length of triangles
 
-const e = 0.01; // epsilon 
-const d = 0.1; // rough edge length of triangles
+//const e = 0.01; // epsilon 
+//const d = 0.1; // rough edge length of triangles
 
 //const e = 0.001; // epsilon 
 //const d = 0.11; // rough edge length of triangles
 
-//const e = 0.001; // epsilon 
-//const d = 0.13; // rough edge length of triangles
+const e = 0.001; // epsilon 
+const d = 0.13; // rough edge length of triangles
 
 // works, but too inaccurate
 //const e = 0.0001; // epsilon

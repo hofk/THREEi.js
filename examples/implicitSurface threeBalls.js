@@ -13,8 +13,6 @@ const xs = 0; // x START POINT
 const ys = 4 ; // y START POINT
 const zs = 0; // z START POINT
 
-const e = 0.001; // epsilon 
 const d = 0.1; // rough edge length of triangles
+const e = 0.001; // epsilon 
 
-//const fc = // faces ( max. number of triangles, optional )						
-//const pc = // positions ( max. number of points, optional )

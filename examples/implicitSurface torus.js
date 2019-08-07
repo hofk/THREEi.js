@@ -1,7 +1,7 @@
 // Example: implicit surface torus:
 
-const R = 1;
-const a = 0.25;
+const R = 2;
+const a = 0.5;
 
 const f0 = ( x, y, z ) => ( x*x + y*y + z*z + R*R - a*a )
 
@@ -15,4 +15,7 @@ const ys = 1.1; // y START POINT
 const zs = 0; // z START POINT
 
 const e = 0.001; // epsilon 
-const d = 0.05; // rough edge length of triangles
+const d = 0.06; // rough edge length of triangles
+
+const  opt = { b: [ 1.25 , -Infinity, Infinity, -Infinity, Infinity, -Infinity ] };
+

@@ -5,10 +5,11 @@ const dx = ( x, y, z ) => ( 2 * x );// PARTIAL DERIVATE to x
 const dy = ( x, y, z ) => ( 6 * y * y * y * y * y );// PARTIAL DERIVATE to y
 const dz = ( x, y, z ) => ( 2 * z );// PARTIAL DERIVATE to z
 
-
 const xs = 0.1;// x START POINT
 const ys = 0.05;// y START POINT
 const zs = 0.95;// z START POINT
 
-const e = 0.01; // epsilon 
-const d = 0.05; // rough edge length of triangles
+const d = 0.04; // rough edge length of triangles
+const e = 0.001; // epsilon 
+
+const opt = { b: [  Infinity , 0, Infinity, -Infinity, Infinity, -Infinity ] }; // bounds 
