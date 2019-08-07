@@ -7,14 +7,39 @@
 <body>
 	progress <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
 </body>
-<script src="../js/three.min.106.js"></script>
+<script src="../js/three.min.107.js"></script>
 <script src="../js/OrbitControls.js"></script>
-<script src="../js/THREEi.js"></script>
+<script src="THREEi.js"></script>
 
 <!-- rename the example
 	<script src="implicitSurface example.js"></script>
+	
+examples for version (A) with opt: (infinite surfaces or cut surfaces)
+ 
+	<script src="implicitSurface cylinder.js"></script> 
+	<script src="implicitSurface sphere cylinder.js"></script>
+	<script src="implicitSurface two cylinder parallel.js"></script>
+	<script src="implicitSurface two cylinder.js"></script>
+	<script src="implicitSurface three cylinder.js"></script> 
+	<script src="implicitSurface two cylinder sphere.js"></script>
+	<script src="implicitSurface sphere cone.js"></script>
+	<script src="implicitSurface sphere cut.js"></script>
+	<script src="implicitSurface yh6.js"></script>
+	<script src="implicitSurface y sin.js"></script>
+	<script src="implicitSurface torus.js"></script>
+	<script src="implicitSurface genus2 cut.js"></script>
+	
+ examples for version (B) without opt: 
+ 
+	<script src="implicitSurface threeBalls.js"></script>
+	<script src="implicitSurface equipotential.js"></script>
+	<script src="implicitSurface yh4.js"></script>
+	<script src="implicitSurface torus sphere.js"></script>
+	<script src="implicitSurface genus3.js"></script>	
+ 
  -->
-<script src="implicitSurface genus2.js"></script>
+
+	<script src="implicitSurface genus2 cut.js"></script>
 
 <script>
 
@@ -28,7 +53,7 @@
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.01, 1000 );
-camera.position.set( 8, 4, 4 );
+camera.position.set( 1, 1, 10);
 const renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setClearColor( 0x999999, 1 );
@@ -39,23 +64,36 @@ const controls = new THREE.OrbitControls( camera, renderer.domElement );
 const axesHelper = new THREE.AxesHelper( 3 );
 scene.add( axesHelper );
 
-const progressFactor = 1.5; // for slider
+const progressFactor = 4; // for slider, take 0.1 .. 1 .. 8 .. 16 ..
 
 // ..........................................................
 
 const g = new THREE.BufferGeometry( );
 g.createImplicitSurface = THREEi.createImplicitSurface;
-//g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc ); // fc, pc optional
-g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e );	// parameters from implicitSurface example.js	
+
+// use version (A) with opt for infinite surfaces such as cylinders and cones or for cuts
+	/*opt optional object, all properties also optional
+				{ 	
+					fc:  faces //( max. number of triangles )
+					pc:  positions // ( max. number of points )
+					b:   bounds //  array [ xMax, xMin, yMax, yMin, zMax, zMin ]
+				}
+	*/
+
+// (A) parameters from implicitSurface example.js, with object of optional parameters, contains bounds 
+g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, opt );
+
+// (B) parameters from implicitSurface example.js with some default values
+//g.createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e );
 
 //...........................................................
 
-const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99} );
 const mesh1 = new THREE.Mesh( g, material1 );
 scene.add( mesh1 );
 const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
 const mesh2 = new THREE.Mesh( g, material2 );
-scene.add( mesh2 );
+scene.add( mesh2 ); 
 
 animate( );
 
