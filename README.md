@@ -169,4 +169,12 @@ scene.add( mesh2 );
 *Variant with boundaries demands some more effort, however is absolutely necessary for infinite surfaces like cylinders and cones.*
 *It is also required for cut surfaces.*
 
+The calculation of the triangles of the implicit surfaces requires some effort. 
+Therefore, it may be useful to export the result of the calculation as a complete three.js BufferGeometry definition.
+The file triangulationImplicitSurfaceExportGeo.html serves this purpose. See folder Examples.
+If you press the export Def button, the JavaScript code is displayed and copied to the clipboard.
+The ...32 arrays are shortened to the true length.
+This three.js BufferGeometry definition can be inserted into the file implicitSurfaceImport.html at the marked position.
+The definition can also easily be copied into your own projects.
+
 ---
