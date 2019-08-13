@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<head>
+	<title> ImplicitSurfaceImport </title>
+	<meta charset="utf-8" />
+</head>
+
+<body>
+	progress <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
+</body>
+<script src="three.min.107.js"></script>
+<script src="OrbitControls.js"></script>
+
+<script>
+
+// @author hofk 
+
+'use strict'
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.01, 1000 );
+camera.position.set( 1, 1, 10);
+const renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setClearColor( 0x999999, 1 );
+const container = document.createElement( 'div' );
+document.body.appendChild( container );
+container.appendChild( renderer.domElement ); 
+const controls = new THREE.OrbitControls( camera, renderer.domElement );
+const axesHelper = new THREE.AxesHelper( 3 );
+scene.add( axesHelper );
+
+const progressFactor = 0.5; // for slider, take 0.1 .. 1 .. 8 .. 16 ..
+
+// ... copy from triangulationImplicitSurfaceExportGeo.html exported BufferGeometry definition here ...
+
+
+//.....................................................................................................
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99} );
+const mesh1 = new THREE.Mesh( g, material1 );
+scene.add( mesh1 );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
+const mesh2 = new THREE.Mesh( g, material2 );
+scene.add( mesh2 ); 
+
+animate( );
+
+// ....................................
+
+function animate( ) {
+
+	g.setDrawRange(  0, range.value * 3 * progressFactor );
+	 
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+	controls.update( );
+	
+}
+
+</script>
+
+</html>
