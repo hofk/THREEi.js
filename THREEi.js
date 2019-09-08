@@ -1,4 +1,4 @@
-// THREEi.js ( rev 107.0 )
+// THREEi.js ( rev 108.0 )
 
 /**
  * @author hofk / http://threejs.hofk.de/
@@ -1469,6 +1469,12 @@ function buildImplicitSurface( ) {
 			g.indices[ indIdx + 1 ] = front[ 1 ].idx 
 			g.indices[ indIdx + 2 ] = front[ 0 ].idx;
 			
+			indIdx += 3;
+			
+			/////////////// DEBUG triangles ///////////////////////
+			// stp ++
+			///////////////////////////////////////////////////////
+			
 			front = [];
 			
 			fronts[ activeFrontNo ] = [];
@@ -2344,6 +2350,18 @@ function buildImplicitSurface( ) {
 			g.indices[ indIdx     ] = front[ 2 ].idx;
 			g.indices[ indIdx + 1 ] = front[ 1 ].idx 
 			g.indices[ indIdx + 2 ] = front[ 0 ].idx;
+			
+			indIdx += 3;
+				
+			/////////////// DEBUG triangles ///////////////////////
+			stp ++;
+			///////////////////////////////////////////////////////
+			
+			front = [];
+			
+			fronts[ frontNo ] = [];
+			
+			frontStock -= 1; // close front			
 			
 		}
 		
