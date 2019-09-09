@@ -964,7 +964,7 @@ function buildImplicitSurface( ) {
 		front = fronts[ activeFrontNo ];
 		
 		///////////////////// DEBUG triangles /////////////////////////
-		// let stp = 0; 
+		 let stp = 0; 
 		///////////////////////////////////////////////////////////////
 		
 		makeFirstTriangle( ); // first triangle creates a front
@@ -1389,7 +1389,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				// stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -1426,7 +1426,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				// stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -1440,7 +1440,7 @@ function buildImplicitSurface( ) {
 					indIdx += 3;
 					
 					/////////////// DEBUG triangles ///////////////////////
-					// stp ++
+					stp ++
 					///////////////////////////////////////////////////////
 					
 				}
@@ -1454,7 +1454,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				// stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				replaceFront( m, insertFront ); // replaces front[ m ] with new points
@@ -1472,7 +1472,7 @@ function buildImplicitSurface( ) {
 			indIdx += 3;
 			
 			/////////////// DEBUG triangles ///////////////////////
-			// stp ++
+			stp ++
 			///////////////////////////////////////////////////////
 			
 			front = [];
@@ -1488,7 +1488,7 @@ function buildImplicitSurface( ) {
 			if ( frontStock > 0 ) {
 				
 				for ( let i = 0; i < fronts.length; i ++ ) {
-				
+					
 					if ( fronts[ i ].length > 0 ) {
 						
 						activeFrontNo = i;
@@ -1499,6 +1499,14 @@ function buildImplicitSurface( ) {
 				}
 				
 				front = fronts[ activeFrontNo ];
+				
+				smallAngles = [];
+				
+				for ( let i = 0; i < front.length; i ++ ) {
+					
+					calculateFrontAngle( i ); // recalculate angles of next front
+					
+				}
 				
 			}
 			
@@ -1806,7 +1814,7 @@ function buildImplicitSurface( ) {
 		let pCount; // count available points in active front
 		
 		///////////////////// DEBUG triangles /////////////////////////
-		//let stp = 0; 
+		let stp = 0; 
 		///////////////////////////////////////////////////////////////
 		
 		makeFirstTriangle( ); // first triangle creates a front
@@ -2259,7 +2267,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				//stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -2308,7 +2316,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				//stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -2322,7 +2330,7 @@ function buildImplicitSurface( ) {
 					indIdx += 3;
 					
 					/////////////// DEBUG triangles ///////////////////////
-					//stp ++
+					stp ++
 					///////////////////////////////////////////////////////
 					
 				}
@@ -2336,7 +2344,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				//stp ++
+				stp ++
 				///////////////////////////////////////////////////////
 				
 				replaceFront( m, insertFront ); // replaces front[ m ] with new points
@@ -2361,11 +2369,11 @@ function buildImplicitSurface( ) {
 			
 			fronts[ frontNo ] = [];
 			
-			frontStock -= 1; // close front			
+			frontStock -= 1; // close front
 			
 		}
 		
-		function chooseNextFront ( ) {
+		function chooseNextFront( ) {
 			
 			if ( frontStock > 0 ) {
 				
@@ -2381,6 +2389,14 @@ function buildImplicitSurface( ) {
 				}
 				
 				front = fronts[ activeFrontNo ];
+				
+				smallAngles = [];
+					
+				for ( let i = 0; i < front.length; i ++ ) {
+					
+					calculateFrontAngle( i ); // recalculate angles of next front
+				
+				}
 				
 			}
 			
