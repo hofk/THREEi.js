@@ -516,7 +516,7 @@ function buildSphereWithHoles( ) {
 			
 			xmin = x < xmin ? x : xmin; 
 			ymin = y < ymin ? y : ymin;
-			zmin = z < zmin ? y : zmin;
+			zmin = z < zmin ? z : zmin;
 			
 			xmax = x > xmax ? x : xmax;
 			ymax = y > ymax ? y : ymax;
@@ -612,7 +612,7 @@ function buildSphereWithHoles( ) {
 			
 			xmin = x1 < xmin ? x1 : xmin;
 			ymin = y1 < ymin ? y1 : ymin;
-			zmin = z1 < zmin ? y1 : zmin;
+			zmin = z1 < zmin ? z1 : zmin;
 			
 			xmax = x1 > xmax ? x1 : xmax;
 			ymax = y1 > ymax ? y1 : ymax;
@@ -653,7 +653,7 @@ function buildSphereWithHoles( ) {
 					
 					xmin = x < xmin ? x : xmin;
 					ymin = y < ymin ? y : ymin;
-					zmin = z < zmin ? y : zmin;
+					zmin = z < zmin ? z : zmin;
 					
 					xmax = x > xmax ? x : xmax;
 					ymax = y > ymax ? y : ymax;
@@ -751,7 +751,7 @@ function buildSphereWithHoles( ) {
 			
 			xmin = x < xmin ? x : xmin;
 			ymin = y < ymin ? y : ymin;
-			zmin = z < zmin ? y : zmin;
+			zmin = z < zmin ? z : zmin;
 			
 			xmax = x > xmax ? x : xmax;
 			ymax = y > ymax ? y : ymax;
