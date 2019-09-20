@@ -558,11 +558,11 @@ function buildSphereWithHoles( ) {
 	
 	}
 	
-	function makeFirstTriangle ( ) {
+	function makeFirstTriangle( ) {
 		
 		storePoint( 0, 0 ); // ( theta, phi )
-		storePoint( d, -g.detail / 6 * d );
-		storePoint( d, g.detail / 6 * d );
+		storePoint( d, -Math.PI / 6 );
+		storePoint( d,  Math.PI / 6 );
 		
 		g.indices[ 0 ] = 0;
 		g.indices[ 1 ] = 1; 
