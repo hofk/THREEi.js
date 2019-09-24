@@ -1,5 +1,5 @@
 # THREEi
-three.js addon for triangulation of implicit surfaces. The addon generates indexed BufferGeometries.
+three.js addon for triangulation of implicit surfaces and for forms with holes. The addon generates indexed BufferGeometries.
 
 
 #### Algorithmus nach / Algorithm based on E. Hartmann.
@@ -78,6 +78,59 @@ const mesh2 = new THREE.Mesh( g, material2 );
 scene.add( mesh2 );
 
  ``` 
+---
+
+.................................................................... Cylinder with Holes (Triangulation)  ..............................................................................
+
+Cylinder with arbitrarily arranged openings, circular ( deformed) or defined by points on the cylinder.
+The geometry is realized as indexed BufferGeometry.
+
+Algorithm modified for cylinder. 
+
+```javascript
+
+const g = new THREE.BufferGeometry( );
+g.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g.createCylinderWithHoles( parameters );
+
+ ``` 
+
+####  EXAMPLE:
+
+```javascript
+const g = new THREE.BufferGeometry( );
+
+const parameters =  {
+ // Example of entries
+ d: 0.052, // rough side length of the triangles
+ div4: 30, // division of the quarter circle
+ bottom: -1, 
+ div4Btm: 30, // division bottom adaptation, (to quarter, >= div4)
+ phiBtm: 1.57, // rotation of adaptive-deformed circle (Bottom)
+ top: 1,
+ div4Top: 33, // division top adaptation, (to quarter, >= div4)
+ phiTop: -0.2, // rotation of adaptive-deformed circle (Top)		
+ holes: [
+	// circular (deformed) hole, 3 elements: [ y, phi, div4Hole ], div4Hole <= div4	
+	[   0.3,  1.6, 12 ],
+	[  -0.4,  3.7, 14 ],
+	[  -0.1, -0.9, 18 ],	
+	//points hole,: array of points y, phi, ...  (last point is connected to first)
+	[ 0.15,0.45, 0.5,0.9, 0.8,0.6, 0.75,-0.2, 0.1,-0.15  ]
+ ]
+}
+g.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g.createCylinderWithHoles( parameters );
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh1 = new THREE.Mesh( g, material1 );
+scene.add( mesh1 );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
+const mesh2 = new THREE.Mesh( g, material2 );
+scene.add( mesh2 );
+
+ ```
+
 ---
 
 .................................................................... Triangulation of Implicit Surfaces ..............................................................................
