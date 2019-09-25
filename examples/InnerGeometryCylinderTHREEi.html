@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!--  -->
+<head>
+	<title> InnerGeometryCylinder </title>
+	<meta charset="utf-8" />
+</head>
+<body>
+	progress 1 <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
+</body>
+<script src="../js/three.min.108.js"></script>
+<script src="../js/OrbitControls.js"></script>
+<script src="../js/THREEi.js"></script>
+
+<script>
+
+// @author hofk 
+
+// Algorithmus nach / Algorithm based on
+// de: https://www2.mathematik.tu-darmstadt.de/~ehartmann/cdg0/cdg0n.pdf
+// en: https://www2.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
+
+'use strict'
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.01, 1000 );
+camera.position.set( 3, 3, 10 );
+const renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+//renderer.setClearColor( 0x999999, 1 );
+renderer.setClearColor( 0x111111, 1 );
+const container = document.createElement( 'div' );
+document.body.appendChild( container );
+container.appendChild( renderer.domElement ); 
+const controls = new THREE.OrbitControls( camera, renderer.domElement );
+const axesHelper = new THREE.AxesHelper( 1.0 );
+scene.add( axesHelper );
+
+// ....................................
+const g1 = new THREE.BufferGeometry( );
+const parameters1 =  {
+	d: 0.08, // rough side length of the triangles
+	div4: 20, // division of the quarter circle
+	bottom: -1.2, 
+	div4Btm: 30, // division bottom adaptation, (to quarter, >= div4)
+	phiBtm: Math.PI / 4, // rotation of adaptive-deformed circle (Bottom)
+	top: 1,
+	div4Top: 20, // division top adaptation, (to quarter, >= div4)
+	phiTop: -Math.PI / 8, // rotation of adaptive-deformed circle (Top)
+	holes: [
+		// circular (deformed) hole, 3 elements: [ y, phi, div4Hole ], div4Hole <= div4	
+		[ -0.2, 0, 20 ],
+		[  0.1, Math.PI, 10 ],
+	]	
+}
+g1.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g1.createCylinderWithHoles( parameters1 );
+
+const g2 = new THREE.BufferGeometry( );
+const parameters2 =  {
+	d: 0.08, // rough side length of the triangles
+	div4: 20, // division of the quarter circle
+	bottom: 0, 
+	div4Btm: 20, // division bottom adaptation, (to quarter, >= div4)
+	phiBtm: 1.57, // rotation of adaptive-deformed circle (Bottom)
+	top: 3	
+}
+g2.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g2.createCylinderWithHoles( parameters2 );
+
+const g3 = new THREE.BufferGeometry( );
+const parameters3 =  {
+	d: 0.08, // rough side length of the triangles
+	div4: 30, // division of the quarter circle
+	bottom: -2, 
+	top: 2,
+	holes: [
+		// circular (deformed) hole, 3 elements: [ y, phi, div4Hole ], div4Hole <= div4	
+		[ 0, 0, 20 ],
+		//points hole,: array of points y, phi, ...  (last point is connected to first)
+		[ 0.33,2.9, -0.33,2.9, -0.33,3.38, 0.33,3.38 ]
+		
+	]	
+}
+g3.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g3.createCylinderWithHoles( parameters3 );
+
+const g4 = new THREE.BufferGeometry( );
+const parameters4 =  {
+	d: 0.08, // rough side length of the triangles
+	div4: 20, // division of the quarter circle
+	bottom: -2, 
+	top: 2,
+	holes: [
+		// circular (deformed) hole, 3 elements: [ y, phi, div4Hole ], div4Hole <= div4	
+		[ 0, Math.PI, 20 ]
+	]
+}
+g4.createCylinderWithHoles = THREEi.createCylinderWithHoles;
+g4.createCylinderWithHoles( parameters4 );
+
+//.....................................
+
+let progressFactor1 = 0.5;
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x00cc00, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh1 = new THREE.Mesh( g1, material1 );
+scene.add( mesh1 );
+
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x00cccc, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh2 = new THREE.Mesh( g2, material2 );
+mesh2.rotation.set( 0, 0, -Math.PI / 2 );
+mesh2.position.set( g1.radius, -0.2, 0 );
+scene.add( mesh2 );
+ 
+const material3 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x0000cc, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh3 = new THREE.Mesh( g3, material3 );
+mesh3.rotation.set( 0, -Math.PI / 4, Math.PI / 2 );
+mesh3.position.set( 0, -1.2 -g3.radius, 0 );
+scene.add( mesh3 );
+
+const material4 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0xcc00cc, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh4 = new THREE.Mesh( g4, material4 );
+mesh4.rotation.set( 0, 3*Math.PI / 8, Math.PI / 2 );
+mesh4.position.set( 0, 1 + g4.radius, 0 );
+scene.add( mesh4 );
+
+animate( );
+
+// ....................................
+
+function animate( ) {
+
+	g1.setDrawRange( 0, range.value * 3 * progressFactor1 );
+	 
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+	controls.update( );
+	
+}
+
+// ....................................
+
+</script>
+
+</html>
