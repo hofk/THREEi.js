@@ -4,9 +4,9 @@
 	<meta charset="utf-8" />
 </head>
 <body>
-	progress <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
+	progress 1 <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
 </body>
-<script src="../js/three.min.108.js"></script>
+<script src="../js/three.min.109.js"></script>
 <script src="../js/OrbitControls.js"></script>
 <script src="../js/THREEi.js"></script>
 
@@ -22,7 +22,7 @@
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.1, 100 );
-camera.position.set( 1, 2, 3 );
+camera.position.set( 1, 3, 3 );
 const renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setClearColor( 0x999999, 1 );	
@@ -30,12 +30,13 @@ const container = document.createElement( 'div' );
 document.body.appendChild( container );
 container.appendChild( renderer.domElement ); 
 const controls = new THREE.OrbitControls( camera, renderer.domElement );
-const axesHelper = new THREE.AxesHelper( 1.5 );
+const axesHelper = new THREE.AxesHelper( 1 );
 scene.add( axesHelper );
 
 // ....................................
-const g = new THREE.BufferGeometry( );
-const detail = 50;
+
+const g1 = new THREE.BufferGeometry( );
+const detail = 50; // division of the half of the great circle (orthodrome)
 const holes = [
 	// circular hole, 3 elements: [ theta, phi, count ]
 	[ 2.44,  0.41, 12 ],
@@ -50,33 +51,65 @@ const holes = [
 	[ 0,0,  0.5,-0.8,  0.25,-0.27,  0.4,0.3,  0.3,0.72 ]
 ];
 
-g.createSphereWithHoles = THREEi.createSphereWithHoles;
-//g.createSphereWithHoles( detail );
-g.createSphereWithHoles( detail, holes );
+g1.createSphereWithHoles = THREEi.createSphereWithHoles;
+//g1.createSphereWithHoles( detail ); // holes optional
+g1.createSphereWithHoles( detail, holes );  // 
+
+// ....................................
+
+const g2 = new THREE.BufferGeometry( );	
+const parameters2 = {	
+	d: 0.07, // rough side length of the triangles, radius calculated from d and div4 
+	div4: 25, // division of the quarter of the great circle (orthodrome) 
+	holes: [
+		// circular hole, 3 elements: [ theta, phi, div4Hole ], div4Hole <= div4	
+		[ 1.57, -0.25,  9 ],
+		[ 0.44,  4.84, 18 ],
+		[ 1.23,  1.62, 11 ],
+		// points hole,: array of points theta, phi, ...  (last point is connected to first)
+		[ 1.7,-1.2,  1.7,-2.1,  2.6,-2.1 ]
+	]
+}
+
+g2.createSphereWithHoles = THREEi.createSphereWithHoles;
+g2.createSphereWithHoles( parameters2 ); // parameter object
 
 //.....................................
 
-const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
-const mesh1 = new THREE.Mesh( g, material1 );
-scene.add( mesh1 );
-const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
-const mesh2 = new THREE.Mesh( g, material2 );
-scene.add( mesh2 );
-
+const material11 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh11 = new THREE.Mesh( g1, material11 );
+scene.add( mesh11 );
+const material12 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
+const mesh12 = new THREE.Mesh( g1, material12 );
+scene.add( mesh12 );
+ 
+const material21 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const mesh21 = new THREE.Mesh( g2, material21 );
+mesh21.translateX( -2 );
+mesh21.translateZ( -2 );
+scene.add( mesh21 );
+const material22 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x660066, transparent: true, opacity: 0.9 } );
+const mesh22 = new THREE.Mesh( g2, material22 );
+mesh22.translateX( -2 );
+mesh22.translateZ( -2 );
+scene.add( mesh22 );
+ 
 // fit a cylinder
 const hlNo = 5; // hole No
-const lenCyl = g.circles[ hlNo ][ 3 ] * 1.6;
+const lenCyl = g1.circles[ hlNo ][ 3 ] * 1.6;
 
-const cylGeo = new THREE.CylinderBufferGeometry( g.circles[ hlNo ][ 3 ], g.circles[ hlNo ][ 3 ], lenCyl, g.circles[ hlNo ][ 4 ], 12, true );
+const cylGeo = new THREE.CylinderBufferGeometry( g1.circles[ hlNo ][ 3 ], g1.circles[ hlNo ][ 3 ], lenCyl, g1.circles[ hlNo ][ 4 ], 12, true );
 const material3 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x8800aa, wireframe: true } );
 const mesh3 = new THREE.Mesh( cylGeo, material3 );
 scene.add( mesh3 );
 
 const yAx = new THREE.Vector3( 0, 1, 0 );
-const cpt = new THREE.Vector3( g.circles[ hlNo ][ 0 ], g.circles[ hlNo ][ 1 ], g.circles[ hlNo ][ 2 ] );
+const cpt = new THREE.Vector3( g1.circles[ hlNo ][ 0 ], g1.circles[ hlNo ][ 1 ], g1.circles[ hlNo ][ 2 ] );
 const dp = 1 + lenCyl / 2;
-mesh3.position.set( dp * g.circles[ hlNo ][ 0 ] , dp * g.circles[ hlNo ][ 1 ] , dp * g.circles[ hlNo ][ 2 ] );
+mesh3.position.set( dp * g1.circles[ hlNo ][ 0 ] , dp * g1.circles[ hlNo ][ 1 ] , dp * g1.circles[ hlNo ][ 2 ] );
 mesh3.quaternion.setFromUnitVectors( yAx, cpt.clone( ).normalize( ) );
+
+const progressFactor1 = 1;
  
 animate( );
 
@@ -84,7 +117,7 @@ animate( );
 
 function animate( ) {
 
-	g.setDrawRange( 0, range.value * 3 );
+	g1.setDrawRange( 0, range.value * 3 * progressFactor1 );
 	
 	requestAnimationFrame( animate );
 	renderer.render( scene, camera );
