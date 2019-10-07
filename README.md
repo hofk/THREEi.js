@@ -31,22 +31,71 @@ The geometry is realized as indexed BufferGeometry.
 
 Algorithm simplified and modified for sphere. 
 
+There are two variants that are distinguished by the parameters.
+
+#### 1.
+
+Parameters object  { d: div4: holes: } all elements optional
+
+d: rough side length of the triangles, (for exact adjustment of different shapes)
+
+div4: divisions of the quarter of the great circle, (radius = d / Math.sin( Math.PI / ( div4 * 4 )) / 2 )
+
+holes: array of arrays of holes (definition of the holes in the two variants different!)
+
+#### 2.
+
+Variant with less effort in the algorithm! Other angle calculation too.
+
+One parameter and one optional parameter: detail, (holes) 
+
+Sphere with fixed radius 1 (use three.js .scale) and specifying detail and optional holes (array of arrays of holes).
+
+The rough side length of the triangles is Math.PI / detail.
+
 ```javascript
 
 const g = new THREE.BufferGeometry( );
 g.createSphereWithHoles = THREEi.createSphereWithHoles;
-//g.createSphereWithHoles( detail );
-g.createSphereWithHoles( detail, holes );
+
+g.createSphereWithHoles( parameterObject ); // variant 1.
+// or
+g.createSphereWithHoles( detail ); // variant 2.
+// or
+g.createSphereWithHoles( detail, holes ); // variant 2.
 
  ``` 
 
-parameters: 
+####  EXAMPLES:
 
-detail:  Math.PI / detail  is rough side length of the triangles
+#### 1.
 
-holes (optional): array of arrays of holes
+```javascript
 
-####  EXAMPLE:
+const g = new THREE.BufferGeometry( );	
+const parameters = {	
+	d: 0.07, // rough side length of the triangles, radius calculated from d and div4 
+	div4: 25, // division of the quarter of the great circle (orthodrome) 
+	holes: [
+		// circular hole, 3 elements: [ theta, phi, div4Hole ], div4Hole <= div4	
+		[ 1.57, -0.25,  9 ],
+		[ 0.44,  4.84, 18 ],
+		[ 1.23,  1.62, 11 ],
+		// points hole,: array of points theta, phi, ...  (last point is connected to first)
+		[ 1.7,-1.2,  1.7,-2.1,  2.6,-2.1 ]
+	]
+}
+
+g.createSphereWithHoles = THREEi.createSphereWithHoles;
+g.createSphereWithHoles( parameters ); // parameter object
+
+const material = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true } );
+const mesh = new THREE.Mesh( g, material );
+scene.add( mesh );
+
+ ``` 
+
+#### 2.
 
 ```javascript
 
@@ -70,12 +119,9 @@ g.createSphereWithHoles = THREEi.createSphereWithHoles;
 //g.createSphereWithHoles( detail );
 g.createSphereWithHoles( detail, holes );
 
-const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
-const mesh1 = new THREE.Mesh( g, material1 );
-scene.add( mesh1 );
-const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x006600, transparent: true, opacity: 0.9 } );
-const mesh2 = new THREE.Mesh( g, material2 );
-scene.add( mesh2 );
+const material = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true } );
+const mesh = new THREE.Mesh( g, material );
+scene.add( mesh );
 
  ``` 
 ---
@@ -133,7 +179,7 @@ scene.add( mesh2 );
 
 ---
 
-.................................................................... Triangulation of Implicit Surfaces ..............................................................................
+.................................................................... Implicit Surface (Triangulation) ..............................................................................
 
 Algorithm modified.
 
