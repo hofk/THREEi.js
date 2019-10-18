@@ -132,7 +132,7 @@ This version contains only the older, simplified functions
  * buildSphereWithHolesObj, buildSphereWithHoles( ),
  * this requires less effort in code and execution,
  * but
- ### does not check whether the current front overlaps, #### 
+ #### does not check whether the current front overlaps, ##### 
  * in very many cases with few holes this is not a problem,
  * it can lead to errors in more complicated cases
  
