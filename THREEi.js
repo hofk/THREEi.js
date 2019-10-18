@@ -26,51 +26,45 @@ var g;	// THREE.BufferGeometry
 // ............................ Sphere with Holes (Triangulation) .................................
 
 function createSphereWithHoles( arg1, arg2 ) {
-		
+	
 	g = this;  //  THREE.BufferGeometry() - geometry object from three.js
 	
-	g.buildSphereWithHolesObj = buildSphereWithHolesObj;	
-	g.buildSphereWithHoles = buildSphereWithHoles;
-
 	if( arg1.d > 0 ) { // variant parameters object { d: div4: holes: } all elements optional
 		
 		g.d = arg1.d !== undefined ? arg1.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
-		g.div4 = arg1.div4 !== undefined ? arg1.div4 : 6; // 6 * 4 = 24 great circle divisions	
+		g.div4 = arg1.div4 !== undefined ? arg1.div4 : 6; // 6 * 4 = 24 great circle divisions
 		g.holes = arg1.holes !== undefined ? arg1.holes : [];
-			
+		
 		g.detail = g.div4 * 4; // division of the great circle 
 		g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // sphere radius, for external use as well
-			
-		/* holes, example:
+		
+		g.buildSphereWithHolesObj = buildSphereWithHolesObj;
+		g.buildSphereWithHolesObj( );
+		
+	} else { // variant detail, holes are optional,
+			 // Variant with less effort in the algorithm! Other angle calculation too.
+			 
+		// radius = 1 is fixed - use three.js .scale
+		g.detail = detail; // count of triangles for half a great circle 
+		g.holes = holes !== undefined ? holes : []; // optional
+		
+		g.buildSphereWithHoles = buildSphereWithHoles;		
+		g.buildSphereWithHoles( );
+		
+	}
+	/* 	holes, example:
 		holes: [
 			// circular hole, 3 elements: [ theta, phi, div4Hole ], div4Hole <= div4	
 			[ 1.82,  0.41, 12 ],
+			// not centered hole to conect a cylinder,
+			// 5 elements: [ theta, phi, div4Hole,'exc', exc%, ], exc% as % of radius, div4Hole <= div4
+			[  0, 0.77, 18, 'exc', 5.8],
+			[  0, -1.4, 16, 'exc', 73.2933 ], // 100 is identical, exc is limited 
 			// points hole,: array of points theta, phi, ...  (last point is connected to first)
 			[ 0,0,  0.5,-0.8,  0.25,-0.27,  0.4,0.3,  0.3,0.72 ]
 		]
-		*/
-		
-		g.buildSphereWithHolesObj( );
-		
-	} else { // variant detail, holes are optional, radius = 1 is fixed - use three.js .scale
-			 // Variant with less effort in the algorithm! Other angle calculation too.
-			 
-		g.detail = detail; // count of triangles for half a great circle 
-		g.holes = holes !== undefined ? holes : []; // optional
-		/* holes, example:	
-		holes = [
-			// circular hole, 3 elements: [ theta, phi, count ]
-			[ 2.44,  0.41, 12 ],
-			[ 0.72,  2.55, 19 ],	
-			// points hole,: array of points theta, phi, ...  (last point is connected to first)
-			[ 0,0,  0.5,-0.8,  0.25,-0.27,  0.4,0.3,  0.3,0.72 ]
-		];
-		*/
-		
-		g.buildSphereWithHoles( );
-
-	}		
-
+	*/
+	
 }
 
 function buildSphereWithHolesObj( ) {
@@ -115,7 +109,7 @@ function buildSphereWithHolesObj( ) {
 	let posIdx = 0;
 	let indIdx = 0;
 	let frontPosIdx, unionIdxA, unionIdxB, splitIdx;
-	 
+	
 	let front = []; // active front // front[ i ]: object { idx: 0, ang: 0 }
 	let partFront = []; // separated part of the active front (to split)
 	let insertFront = []; // new front points to insert into active front
@@ -127,7 +121,7 @@ function buildSphereWithHolesObj( ) {
 	let frontNo, frontStock;
 	let unite = false;
 	let split = false;
-		
+	
 	frontNo = 0; // active front number
 	frontStock = 0; // number of fronts still to be processed
 	
@@ -140,7 +134,7 @@ function buildSphereWithHolesObj( ) {
 	} else {
 	
 		g.circles = []; // array of arrays [ xc, yc, zc, rHole, div4Hole ], values for external use
-	
+		
 		for ( let i = 0; i < g.holes.length; i ++ ) {
 			
 			if ( g.holes[ i ].length === 3 ) {
@@ -152,7 +146,7 @@ function buildSphereWithHolesObj( ) {
 				makePointsHole( i ); // points: [ theta, phi, ... ]
 				
 			}
-		
+			
 		}
 		
 	}
@@ -162,49 +156,60 @@ function buildSphereWithHolesObj( ) {
 	
 	//////////////// DEBUG triangles //////////////////////////////////////
 	// let stp = 0; 
-	///////////////////////////////////////////////////////////////////////		
+	///////////////////////////////////////////////////////////////////////
 	
 	// ------ triangulation cycle -------------
 	
 	while ( frontStock > 0 ) {
 		
-		if ( !unite ) { // triangulation on the front
-		
+		if ( !unite && !split ) { // triangulation on the front
+			
 			smallAngles = [];
-		
+			
 			for ( let i = 0; i < front.length; i ++ ) {
 				
 				if( front[ i ].ang === 0 ) calculateFrontAngle( i ); // is to be recalculated (angle was set to zero)
-					
+				
 			}
 			
 			m = getMinimalAngleIndex( ); // front angle
-			makeNewTriangles( m );		
-					
-			if ( front.length > 9 && smallAngles.length === 0 ) {		
+			makeNewTriangles( m );
+			
+			if ( front.length > 9 && smallAngles.length === 0 ) {
 				
 				checkDistancesToUnite( m );
+				checkDistancesToSplit( m );
 				
 			}
 			
 			if ( front.length === 3 ) {
 				
-				makeLastTriangle( ); // last triangle closes the front								
+				makeLastTriangle( ); // last triangle closes the front
 				chooseNextFront( ); // if aviable
 				
 			}
 			
-		} else { // unite the active front to another front
+		} else { // unite the active front to another front or split the active front
 			
-			uniteFront(  m, iUnite, fUnite, jUnite );
-			trianglesAtUnionPoints( );
-			unite = false;
+			if ( unite ) {
+				
+				uniteFront(  m, iUnite, fUnite, jUnite );
+				trianglesAtUnionPoints( );
+				unite = false;
+				
+			} else if ( split ) {
+				
+				splitFront( iSplit, jSplit );
+				trianglesAtSplitPoints( );
+				split = false;
+				
+			}
 			
 		}
-				 
+		
 	}
 	
-	// .....  detail functions .....	
+	// .....  detail functions .....
 	
 	function makeFirstTriangle ( ) {
 		
@@ -221,10 +226,14 @@ function buildSphereWithHolesObj( ) {
 		
 		indIdx += 3;
 		
-		fronts[ frontNo ].push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );	
+		///////////////  DEBUG triangles  //////////////////////
+	 	//  stp ++;
+		////////////////////////////////////////////////////////
 		
-		frontNo ++;		
-		frontStock ++;	
+		fronts[ frontNo ].push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );
+		
+		frontNo ++;
+		frontStock ++;
 		
 	}
 	
@@ -243,7 +252,7 @@ function buildSphereWithHolesObj( ) {
 		
 		x1 = g.radius * Math.sin( theta ) * Math.cos( phi );
 		y1 = g.radius * Math.cos( theta );
-		z1 = -g.radius * Math.sin( theta ) * Math.sin( phi );	
+		z1 = -g.radius * Math.sin( theta ) * Math.sin( phi );
 		
 		for ( let j = 1; j < g.holes[ i ].length / 2 + 1; j ++ ) {
 		
@@ -261,7 +270,7 @@ function buildSphereWithHolesObj( ) {
 			ymax = y1 > ymax ? y1 : ymax;
 			zmax = z1 > zmax ? z1 : zmax;
 			
-			posIdx += 3;			
+			posIdx += 3;
 			
 			theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
 			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
@@ -322,7 +331,7 @@ function buildSphereWithHolesObj( ) {
 	}
 	
 	function makeCircularHole( i ) {
-	
+		
 		let xa, ya, za, xb, yb; // for rotation around z, y
 		
 		const theta = g.holes[ i ][ 0 ];
@@ -354,9 +363,9 @@ function buildSphereWithHolesObj( ) {
 		
 		ya = h;
 		
-		for ( let i = 0, alpha = 0; i < countH; i ++, alpha += 2 * Math.PI / countH ) {			
-
-			//  cutting circle on top		
+		for ( let i = 0, alpha = 0; i < countH; i ++, alpha += 2 * Math.PI / countH ) {
+		
+			//  cutting circle on top
 			xa = rHole * Math.cos( alpha );
 			za = rHole * Math.sin( alpha );
 			 
@@ -394,10 +403,10 @@ function buildSphereWithHolesObj( ) {
 		frontStock ++;
 		
 	}
-				
+	
 	function checkDistancesToUnite( m ) { // for new active front points
 	
-		let idxJ, xChk, yChk, zChk, ddUnite;													 				 
+		let idxJ, xChk, yChk, zChk, ddUnite;
 		let ddUniteMin = Infinity;
 		unite = false;
 		
@@ -405,8 +414,8 @@ function buildSphereWithHolesObj( ) {
 			
 			getPoint( m + i );
 			
-			for ( let f = 0; f < fronts.length; f ++ ) { 
-			
+			for ( let f = 0; f < fronts.length; f ++ ) {
+				
 				if ( f !== frontNo ) {
 					
 					xChk = ( xp > boundings[ f ][ 0 ] - g.d ) && ( xp < boundings[ f ][ 3 ] + g.d );
@@ -416,38 +425,38 @@ function buildSphereWithHolesObj( ) {
 					if (  xChk || yChk || zChk ) {
 						
 						for ( let j = 0; j < fronts[ f ].length; j ++ ) {
-
+							
 							idxJ = fronts[ f ][ j ].idx * 3;
 							
-							// Hint: here (2) is exceptionally point in other front! 						
+							// Hint: here (2) is exceptionally point in other front!
 							x2 = g.positions[ idxJ ]; 
 							y2 = g.positions[ idxJ + 1 ];
 							z2 = g.positions[ idxJ + 2 ];
 							
 							ddUnite = squareLength ( x2 - xp, y2 - yp, z2 - zp );
-								
+							
 							if ( ddUnite < dd && ddUnite < ddUniteMin ) {
-	
+								
 								ddUniteMin = ddUnite; 
 								iUnite = i;
 								jUnite = j;
 								fUnite = f;
 								unite = true;	
-																	
+								
 							}
-
+							
 						}
 						
 					}
 					
 				}
 				
-			}		
+			}
 			
 		}
 		
 	}
-
+	
 	function uniteFront( m, i, f, j ) {
 		
 		let tmp = [];
@@ -477,7 +486,7 @@ function buildSphereWithHolesObj( ) {
 		frontStock -= 1; // front is eliminated
 		
 	}
-		
+	
 	function trianglesAtUnionPoints( ) {
 		
 		nIns = 0; // count inserted points
@@ -520,8 +529,114 @@ function buildSphereWithHolesObj( ) {
 			
 		}
 		
-	}	
-
+	}
+	
+	function checkDistancesToSplit( m ) { // for new active front points
+		
+		let mj, mjIdx, ddSplit;
+		let ddSplitMin = Infinity;
+		split = false;
+			
+		for ( let i = 0; i < front.length ; i ++ ) {
+			
+			for ( let j = 0; j < n; j ++ ) { // check n new points (insertFront)
+				
+				mj = m + j;
+				
+				// except new points themselves and neighbor points
+				if ( Math.abs( i - mj ) > 3 && Math.abs( i - mj ) < front.length - 3 ) {
+					
+					mjIdx = front[ mj ].idx * 3;
+					
+					// Hint: here (1) is exceptionally new point in the front!
+					x1 = g.positions[ mjIdx ]; 
+					y1 = g.positions[ mjIdx + 1 ];
+					z1 = g.positions[ mjIdx + 2 ];
+					
+					getPoint( i );
+					
+					ddSplit = squareLength ( x1 - xp, y1 - yp, z1 - zp );
+					
+					if ( ddSplit < dd && ddSplit < ddSplitMin ) {
+						
+						ddSplitMin = ddSplit;
+						iSplit = i;
+						jSplit = mj;
+						split = true; 
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+		
+	function splitFront( iSplit, jSplit ) {
+		
+		let k;
+		
+		front[ iSplit ].ang = 0;
+		front[ jSplit ].ang = 0;
+		
+		if ( iSplit > jSplit )  { // swap
+			
+			k = jSplit;
+			jSplit = iSplit;
+			iSplit = k;
+			
+		} 
+		
+		splitIdx = iSplit;	// lower index
+		
+		partFront = [];
+		
+		// to duplicate
+		let frontI = front[ iSplit ];
+		let frontJ = front[ jSplit ];
+		
+		partFront = front.splice( iSplit + 1, jSplit - iSplit - 1 );
+		partFront.unshift( frontI );
+		partFront.push( frontJ );
+		
+		fronts.push( partFront );
+		
+		partFrontBounds( );
+		
+		frontStock += 1; // new front created
+		
+	}
+	
+	function trianglesAtSplitPoints( ) {
+		
+		nIns = 0; // count inserted points
+		
+		let idx0 = splitIdx; // splitIdx is the lower index 
+		let idx1 = splitIdx + 1;
+		
+		calculateFrontAngle( idx0 );
+		calculateFrontAngle( idx1 );
+		
+		if ( front[ idx1 ].ang < front[ idx0 ].ang ){
+			
+			makeNewTriangles( idx1 );
+			nIns += n - 1;
+			calculateFrontAngle( idx0 );
+			makeNewTriangles( idx0 );
+			
+		} else {
+			
+			makeNewTriangles( idx0 );
+			nIns += n - 1;
+			calculateFrontAngle( idx1 + nIns );
+			makeNewTriangles( idx1 + nIns );
+			
+		}
+		
+	}
+	
 	function getMinimalAngleIndex( ) {
 		
 		let angle = Infinity;
@@ -533,11 +648,11 @@ function buildSphereWithHolesObj( ) {
 				
 				angle = front[ i ].ang ;
 				m = i;
-					
+				
 			}
 			
 		}
-
+		
 		return m;
 		
 	}
@@ -556,7 +671,7 @@ function buildSphereWithHolesObj( ) {
 		getNextPoint( m );
 		
 		d1 = length( x1 - xp, y1 - yp, z1 - zp );
-		d2 = length( x2 - xp, y2 - yp, z2 - zp );	
+		d2 = length( x2 - xp, y2 - yp, z2 - zp );
 		d12 = length( x2 - x1, y2 - y1, z2 - z1 );
 		
 		// correction of dAng, nT in extreme cases
@@ -582,7 +697,7 @@ function buildSphereWithHolesObj( ) {
 		}
 		
 		n = nT - 1;  // n number of new points
-			
+		
 		if ( n === 0 ) { // one triangle
 			
 			g.indices[ indIdx     ] = front[ m ].idx;
@@ -593,24 +708,24 @@ function buildSphereWithHolesObj( ) {
 			
 			///////////////  DEBUG triangles  //////////////////////
 		 	// stp ++;
-			////////////////////////////////////////////////////////	 
-					
-			front[ prevFront( m ) ].ang = 0;		
-			front[ nextFront( m ) ].ang = 0;			
+			////////////////////////////////////////////////////////
 			
-			front.splice( m, 1 ); // delete point with index m from the front	
-				
+			front[ prevFront( m ) ].ang = 0;
+			front[ nextFront( m ) ].ang = 0;
+			
+			front.splice( m, 1 ); // delete point with index m from the front
+			
 		} else { // more then one triangle
 			
 			xc = xp;
 			yc = yp;
 			zc = zp;
-
+			
 			for ( let i = 0,  phi = dAng; i < n; i ++, phi += dAng ) {
 				
 				xp = xc + Math.cos( phi ) * g.d * xt1 + Math.sin( phi ) * g.d * xt2; 
 				yp = yc + Math.cos( phi ) * g.d * yt1 + Math.sin( phi ) * g.d * yt2;
-				zp = zc + Math.cos( phi ) * g.d * zt1 + Math.sin( phi ) * g.d * zt2;			
+				zp = zc + Math.cos( phi ) * g.d * zt1 + Math.sin( phi ) * g.d * zt2;
 				
 				len = length( xp, yp, zp ); // to bring the point to the surface (g.radius * ..)
 				
@@ -620,9 +735,9 @@ function buildSphereWithHolesObj( ) {
 				
 				insertFront.push( { idx: posIdx / 3, ang: 0 } );
 				
-				posIdx += 3;				
-						
-			}	
+				posIdx += 3;
+				
+			}
 			
 			g.indices[ indIdx     ] = front[ m ].idx;
 			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx 
@@ -633,7 +748,7 @@ function buildSphereWithHolesObj( ) {
 			///////////////  DEBUG triangles  //////////////////////
 		 	// stp ++;
 			////////////////////////////////////////////////////////
-				
+			
 			front[ prevFront( m ) ].ang = 0;
 			
 			for ( let i = 0; i < n - 1; i ++ ) {
@@ -643,7 +758,7 @@ function buildSphereWithHolesObj( ) {
 				g.indices[ indIdx + 2 ] = insertFront[ i + 1 ].idx;
 				
 				indIdx += 3;
-
+				
 				///////////////  DEBUG triangles  //////////////////////
 				// stp ++;
 				////////////////////////////////////////////////////////
@@ -657,17 +772,17 @@ function buildSphereWithHolesObj( ) {
 			front[ nextFront( m ) ].ang = 0;
 			
 			indIdx += 3;
-						
+			
 			///////////////  DEBUG triangles  //////////////////////
 		 	// stp ++;
 			////////////////////////////////////////////////////////
-					
+			
 			replaceFront( m, insertFront ); // replaces front[ m ] with new points
 			
 		}
-			
+		
 	}
-
+	
 	function makeLastTriangle( ) {
 		
 		g.indices[ indIdx     ] = front[ 2 ].idx;
@@ -693,7 +808,7 @@ function buildSphereWithHolesObj( ) {
 		if ( frontStock > 0 ) {
 			
 			for ( let i = 0; i < fronts.length; i ++ ) {
-			
+				
 				if ( fronts[ i ].length > 0 ) {
 					
 					frontNo = i;
@@ -706,29 +821,29 @@ function buildSphereWithHolesObj( ) {
 			front = fronts[ frontNo ];
 			
 			smallAngles = [];
-		
+			
 			for ( let i = 0; i < front.length; i ++ ) {
 				
 				calculateFrontAngle( i ); // recalculate angles of next front
-					
+				
 			}
 			
 		}
 		
 	}
-
+	
 	function atan2PI( x, y ) {
 		
 		let phi = Math.atan2( y, x );
 		
 		if ( phi < 0 ) phi = phi + Math.PI * 2;
-
+		
 		return phi;
-			
+		
 	}
 	
 	function coordTangentialSystem( ) {
-				
+		
 		let det = determinant( xt1, yt1, zt1, xt2, yt2, zt2, xn, yn, zn );
 		
 		xs1 = determinant( x1 - xp, y1 - yp, z1 - zp, xt2, yt2, zt2, xn, yn, zn ) / det;
@@ -737,12 +852,12 @@ function buildSphereWithHolesObj( ) {
 		
 		xs2 = determinant( x2 - xp, y2 - yp, z2 - zp, xt2, yt2, zt2, xn, yn, zn ) / det;
 		ys2 = determinant( xt1, yt1, zt1, x2 - xp, y2 - yp, z2 - zp, xn, yn, zn ) / det;
-		//zs2 = determinant( xt1, yt1, zt1, xt2, yt2, zt2, x2 - xp, y2 - yp, z2 - zp ) / det; // not needed		
+		//zs2 = determinant( xt1, yt1, zt1, xt2, yt2, zt2, x2 - xp, y2 - yp, z2 - zp ) / det; // not needed
 		
 	}
 	
-	function calculateFrontAngle( i ) {		
-			
+	function calculateFrontAngle( i ) {
+		
 		let ang1, ang2;
 		
 		getSystemAtPoint( i );
@@ -755,7 +870,7 @@ function buildSphereWithHolesObj( ) {
 		
 		if ( ang2 < ang1 )  ang2 += Math.PI * 2;
 		
-        front[ i ].ang  = ang2 - ang1;
+		front[ i ].ang  = ang2 - ang1;
 		
 		if ( front[ i ].ang < 1.5 ) smallAngles.push( i );
 		
@@ -774,11 +889,11 @@ function buildSphereWithHolesObj( ) {
 			
 			idx = partFront[ i ].idx * 3;
 			
-			x = g.positions[ idx ]; 
+			x = g.positions[ idx ];
 			y = g.positions[ idx + 1 ];
 			z = g.positions[ idx + 2 ];
 			
-			xmin = x < xmin ? x : xmin; 
+			xmin = x < xmin ? x : xmin;
 			ymin = y < ymin ? y : ymin;
 			zmin = z < zmin ? z : zmin;
 			
@@ -811,7 +926,7 @@ function buildSphereWithHolesObj( ) {
 		}
 		
 	}
-
+	
 	function getSystemAtPoint( i ) {
 		
 		getPrevPoint( i );
@@ -849,7 +964,7 @@ function buildSphereWithHolesObj( ) {
 		zt2 = xn * yt1 - yn * xt1; 	
 		
 	}
-		
+	
 	function storePoint( theta, phi ) {
 		
 		g.positions[ posIdx     ] = g.radius * Math.sin( theta ) * Math.cos( phi );
@@ -857,7 +972,7 @@ function buildSphereWithHolesObj( ) {
 		g.positions[ posIdx + 2 ] = -g.radius * Math.sin( theta ) * Math.sin( phi );
 		
 		posIdx += 3;
-	
+		
 	}
 	
 	function getPrevPoint( i ) {
@@ -894,17 +1009,22 @@ function buildSphereWithHolesObj( ) {
 
 function buildSphereWithHoles( ) {
 	
+	const squareLength = ( x,y,z ) => (  x*x + y*y + z*z );
 	const length = ( x, y, z ) => ( Math.sqrt( x * x + y * y + z * z ) );
 	const prevFront = ( i ) => ( i !== 0 ? i - 1 : front.length - 1 );
 	const nextFront  = ( i ) => ( i !== front.length - 1 ? i + 1 : 0 );
+	
+	// radius = 1 is fixed - use three.js .scale
 	
 	let d; // rough edge length of the triangles
 	let m; // index of the current front point
 	let n; // number of new points
 	let nT; // number of new triangles
-	let nUnion; // number of new points (after union)
+	let nIns; // number of new points (after union or split)
 	let dAng; // partial angle
 	let len, d1, d2, d12, dd1, dd2, dd12; // lengths and their squares
+	let iSplit, jSplit; // split front indices  
+	let iUnite, jUnite, fUnite; // unite front indices, front number (to unite)
 	let h; // distance center to circle
 	let acute, concave; // front angle properties
 	
@@ -913,8 +1033,8 @@ function buildSphereWithHoles( ) {
 	
 	//  preparation
 	
-	const faceCount = g.detail * g.detail * 4;
-	const posCount  = g.detail * g.detail * 3;
+	const faceCount = g.detail * g.detail * 15;
+	const posCount  = g.detail * g.detail * 10;
 	
 	g.indices = new Uint32Array( faceCount * 3 );
 	g.positions = new Float32Array( posCount * 3 );
@@ -924,10 +1044,11 @@ function buildSphereWithHoles( ) {
 	g.addAttribute( 'position', new THREE.BufferAttribute( g.positions, 3 ) );
 	
 	d = Math.PI / g.detail; // rough side length of the triangles
+	const dd = d * d;
 	
 	let posIdx = 0;
 	let indIdx = 0;
-	let frontPosIdx, unionIdxA, unionIdxB;
+	let frontPosIdx, unionIdxA, unionIdxB, splitIdx;
 	 
 	let front = []; // active front // front[ i ]: object { idx: 0, ang: 0 }
 	let partFront = []; // separated part of the active front
@@ -937,12 +1058,14 @@ function buildSphereWithHoles( ) {
 	let boundings = []; // fronts bounding boxes  
 	let smallAngles = []; // new angles < 1.5
 	
-	let start = true;
-	let united = false;
+	let frontNo, frontStock;
+	let unite = false;
+	let split = false;
+	
+	frontNo = 0; // active front number
+	frontStock = 0; // number of fronts still to be processed
 	
 	// define holes
-	
-	let holeNumber;
 	
 	if ( g.holes.length === 0 ) {
 		
@@ -950,9 +1073,7 @@ function buildSphereWithHoles( ) {
 		
 	} else {
 		
-		g.circles = []; // [ center, r, count ] of holes for external use 
-		
-		holeNumber = 0;
+		g.circles = []; // [ center, r, count ] of holes for external use
 		
 		for ( let i = 0; i < g.holes.length; i ++ ) {
 			
@@ -970,55 +1091,299 @@ function buildSphereWithHoles( ) {
 	
 	}
 	
-	let activeFrontNo = 0;
-	front = fronts[ activeFrontNo ];
+	frontNo = 0;
+	front = fronts[ frontNo ];
+	
+	//////////////// DEBUG triangles //////////////////////////////////////
+	// let stp = 0; 
+	///////////////////////////////////////////////////////////////////////
 	
 	// ------  triangulation cycle -------------
 	
-	while ( front.length > 3 || start ) {
+	while ( frontStock > 0 ) {
 		
-		if ( start ) start = false;
-		
-		if ( front.length > 9 && smallAngles.length === 0 ) {
+		if ( !unite && !split ) { // triangulation on the front
 			
-			// checkDistancesInFront( );
-			checkDistancesToFronts( m );
+			smallAngles = [];
 			
-		}
+			for ( let i = 0; i < front.length; i ++ ) {
+				
+				if( front[ i ].ang === 0 ) calculateFrontAngle( i ); // is to be recalculated (angle was set to zero)
+				
+			}
 			
-		if ( united  ) {
-			
-			trianglesAtUnionPoints( );
-			
-		} else {
-			
-			calculateFrontAngles( );
 			m = getMinimalAngleIndex( ); // front angle
-			newTriangles( m );
+			makeNewTriangles( m );
+			
+			if ( front.length > 9 && smallAngles.length === 0 ) {
+				
+				checkDistancesToUnite( m );
+				checkDistancesToSplit( m );
+				
+			}
+			
+			if ( front.length === 3 ) {
+				
+				makeLastTriangle( ); // last triangle closes the front
+				chooseNextFront( ); // if aviable
+				
+			}
+			
+		} else { // unite the active front to another front or split the active front
+			
+			if ( unite ) {
+				
+				uniteFront(  m, iUnite, fUnite, jUnite );
+				trianglesAtUnionPoints( );
+				unite = false;
+				
+			} else if ( split ) {
+				
+				splitFront( iSplit, jSplit );
+				trianglesAtSplitPoints( );
+				split = false;
+				
+			}
 			
 		}
 		
-	} // end while
-
-	makeLastTriangle( );
-
-	// ..... main detail functions .....
+	}
 	
-	function checkDistancesToFronts( m ) { 
+	// ..... detail functions .....
+	
+	function makeFirstTriangle ( ) {
 		
-		let idx, idxJ, xChk, yChk, zChk;
+		fronts[ frontNo ] = [];
+		boundings[ frontNo ] = [];
+		
+		storePoint( 0, 0 ); // ( theta, phi )
+		storePoint( d, -Math.PI / 6 );
+		storePoint( d,  Math.PI / 6 );
+		
+		g.indices[ 0 ] = 0;
+		g.indices[ 1 ] = 1; 
+		g.indices[ 2 ] = 2;
+		
+		indIdx += 3;
+		
+		///////////////  DEBUG triangles  //////////////////////
+	 	//  stp ++;
+		////////////////////////////////////////////////////////
+		
+		fronts[ frontNo ].push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function storePoint( theta, phi ) {
+		
+		g.positions[ posIdx     ] = Math.sin( theta ) * Math.cos( phi );
+		g.positions[ posIdx + 1 ] = Math.cos( theta );
+		g.positions[ posIdx + 2 ] = -Math.sin( theta ) * Math.sin( phi );
+		
+		posIdx += 3;
+		
+	}
+	
+	function makePointsHole( i ) {
+		
+		let theta, phi, count, xmin, ymin, zmin, xmax, ymax, zmax;
+		
+		xmin = ymin = zmin = Infinity;
+		xmax = ymax = zmax = -Infinity;
+		
+		fronts[ frontNo ] = [];
+		boundings[ frontNo ] = [];
+		
+		theta = g.holes[ i ][ 0 ];
+		phi = g.holes[ i ][ 1 ]; 
+		
+		x1 = Math.sin( theta ) * Math.cos( phi );
+		y1 = Math.cos( theta );
+		z1 = -Math.sin( theta ) * Math.sin( phi );
+		
+		for ( let j = 1; j < g.holes[ i ].length / 2 + 1; j ++ ) {
+			
+			g.positions[ posIdx     ] = x1;
+			g.positions[ posIdx + 1 ] = y1;
+			g.positions[ posIdx + 2 ] = z1;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			xmin = x1 < xmin ? x1 : xmin;
+			ymin = y1 < ymin ? y1 : ymin;
+			zmin = z1 < zmin ? z1 : zmin;
+			
+			xmax = x1 > xmax ? x1 : xmax;
+			ymax = y1 > ymax ? y1 : ymax;
+			zmax = z1 > zmax ? z1 : zmax;
+			
+			posIdx += 3;
+			
+			theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
+			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
+			
+			x2 = Math.sin( theta ) * Math.cos( phi );
+			y2 = Math.cos( theta );
+			z2 = -Math.sin( theta ) * Math.sin( phi );
+			
+			xv2 = x2 - x1;
+			yv2 = y2 - y1;
+			zv2 = z2 - z1;
+			
+			len = length( xv2, yv2, zv2 );
+			
+			if ( len > d ) {
+				
+				count = Math.ceil( len / d );
+				
+				for ( let k = 1; k < count; k ++ ) {
+					
+					x = x1 + k * xv2 / count;
+					y = y1 + k * yv2 / count;
+					z = z1 + k * zv2 / count;
+					
+					len = length( x, y, z );
+					
+					g.positions[ posIdx     ] = x / len;
+					g.positions[ posIdx + 1 ] = y / len;
+					g.positions[ posIdx + 2 ] = z / len;
+					
+					fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+					
+					xmin = x < xmin ? x : xmin;
+					ymin = y < ymin ? y : ymin;
+					zmin = z < zmin ? z : zmin;
+					
+					xmax = x > xmax ? x : xmax;
+					ymax = y > ymax ? y : ymax;
+					zmax = z > zmax ? z : zmax;
+					
+					posIdx += 3;
+					
+				}
+				
+			}
+			
+			x1 = x2;
+			y1 = y2;
+			z1 = z2;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function makeCircularHole( i ) {
+		
+		let theta = g.holes[ i ][ 0 ];
+		let phi = g.holes[ i ][ 1 ];
+		let count = g.holes[ i ][ 2 ];
+		
+		let xmin, ymin, zmin, xmax, ymax, zmax;
+		
+		xmin = ymin = zmin = Infinity;
+		xmax = ymax = zmax = -Infinity;
+		
+		xp = Math.sin( theta ) * Math.cos( phi );
+		yp = Math.cos( theta );
+		zp = -Math.sin( theta ) * Math.sin( phi );
+		
+		let r = count / detail / 2; // radius cutting circle
+		
+		h = Math.sqrt( 1 - r * r );
+		
+		if ( !(xp === 0 && yp === 0 ) ) {
+			
+			xt1 = -yp;
+			yt1 = xp;
+			zt1 = 0;
+			
+		} else { 
+			
+			xt1 = 0;
+			yt1 = 1;
+			zt1 = 0;
+			
+		}
+		
+		// cross
+		
+		xt2 = yp * zt1 - zp * yt1;
+		yt2 = zp * xt1 - xp * zt1;
+		zt2 = xp * yt1 - yp * xt1;
+		
+		len = length( xt1, yt1, zt1 ); // to normalize
+		
+		xt1 = xt1 / len;
+		yt1 = yt1 / len;
+		zt1 = zt1 / len;
+		
+		len = length( xt2, yt2, zt2 ); // to normalize
+		
+		xt2 = xt2 / len;
+		yt2 = yt2 / len;
+		zt2 = zt2 / len;
+		
+		xc = h * xp;
+		yc = h * yp;
+		zc = h * zp;
+		
+		g.circles.push( [ xc, yc, zc, r, count ] ); // for external use
+		
+		fronts[ frontNo ] = [];
+		boundings[ frontNo ] = [];
+		
+		for ( let i = 0, phi = 0; i < count; i ++, phi += 2 * Math.PI / count ) {
+			
+			x = xc + Math.cos( phi ) * r * xt1 + Math.sin( phi ) * r * xt2;
+			y = yc + Math.cos( phi ) * r * yt1 + Math.sin( phi ) * r * yt2;
+			z = zc + Math.cos( phi ) * r * zt1 + Math.sin( phi ) * r * zt2;
+			
+			g.positions[ posIdx     ] = x;
+			g.positions[ posIdx + 1 ] = y;
+			g.positions[ posIdx + 2 ] = z;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			xmin = x < xmin ? x : xmin;
+			ymin = y < ymin ? y : ymin;
+			zmin = z < zmin ? z : zmin;
+			
+			xmax = x > xmax ? x : xmax;
+			ymax = y > ymax ? y : ymax;
+			zmax = z > zmax ? z : zmax;
+			
+			posIdx += 3;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function checkDistancesToUnite( m ) { // for new active front points
+		
+		let idx, idxJ, xChk, yChk, zChk, ddUnite;
+		let ddUniteMin = Infinity;
+		unite = false;
 		
 		for ( let i = 0; i < insertFront.length; i ++ ) {
 			
-			idx = front[ m + i ].idx * 3
-			 
-			xp = g.positions[ idx ]; 
-			yp = g.positions[ idx + 1 ];
-			zp = g.positions[ idx + 2 ];
-				
+			getPoint( m + i );
+			
 			for ( let f = 0; f < fronts.length; f ++ ) {
 				
-				if ( f !== activeFrontNo ) {
+				if ( f !== frontNo ) {
 					
 					xChk = ( xp > boundings[ f ][ 0 ] - d ) && ( xp < boundings[ f ][ 3 ] + d );
 					yChk = ( yp > boundings[ f ][ 1 ] - d ) && ( yp < boundings[ f ][ 4 ] + d );
@@ -1029,13 +1394,21 @@ function buildSphereWithHoles( ) {
 						for ( let j = 0; j < fronts[ f ].length; j ++ ) {
 							
 							idxJ = fronts[ f ][ j ].idx * 3;
+							
+							// Hint: here (2) is exceptionally point in other front!
 							x2 = g.positions[ idxJ ]; 
 							y2 = g.positions[ idxJ + 1 ];
 							z2 = g.positions[ idxJ + 2 ];
 							
-							if ( length( x2 - xp, y2 - yp, z2 - zp ) < d ) {
+							ddUnite = squareLength ( x2 - xp, y2 - yp, z2 - zp );
+							
+							if ( ddUnite < dd && ddUnite < ddUniteMin ) {
 								
-								uniteFront(  m, i, f, j );
+								ddUniteMin = ddUnite;
+								iUnite = i;
+								fUnite = f;
+								jUnite = j;
+								unite = true;
 								
 							}
 							
@@ -1051,17 +1424,181 @@ function buildSphereWithHoles( ) {
 		
 	}
 	
-	function calculateFrontAngles( ) {
+	function uniteFront( m, i, f, j ) {
 		
-		smallAngles = [];
+		let tmp = [];
 		
-		for ( let i = 0; i < front.length; i ++ ) {
+		tmp[ 0 ] = front.slice( 0, m + i + 1 );	
+		tmp[ 1 ] = fronts[ f ].slice( j , fronts[ f ].length );
+		tmp[ 2 ] = fronts[ f ].slice( 0 , j + 1 );
+		tmp[ 3 ] = front.slice( m + i, front.length );
+		
+		unionIdxA = m + i;
+		unionIdxB = m + i + 1 + fronts[ f ].length
+		
+		front = [];
+		
+		for ( let t = 0; t < 4; t ++ ) {
 			
-			if( front[ i ].ang === 0 ) {
+			for ( let k = 0; k < tmp[ t ].length ; k ++ ) {
 				
-				frontAngle( i );
+				front.push( tmp[ t ][ k ] );
 				
 			}
+			
+		}
+		
+		fronts[ f ] = []; // empty united front
+		
+		frontStock -= 1; // front is eliminated
+		
+	}
+	
+	function trianglesAtUnionPoints( ) {
+		
+		nIns = 0; // count inserted points
+		
+		calculateFrontAngle( unionIdxA );
+		calculateFrontAngle( unionIdxA + 1 );
+		
+		if ( front[ unionIdxA ].ang < front[ unionIdxA + 1 ].ang ) {
+			
+			makeNewTriangles( unionIdxA );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxA + 1 + nIns );
+			makeNewTriangles( unionIdxA + 1 + nIns );
+			nIns += n - 1;
+			
+		} else {
+			
+			makeNewTriangles( unionIdxA + 1 );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxA );
+			makeNewTriangles( unionIdxA );
+			nIns += n - 1;
+		}
+		
+		calculateFrontAngle( unionIdxB + nIns );
+		calculateFrontAngle( unionIdxB + 1 + nIns );
+		
+		if ( front[ unionIdxB + nIns ].ang < front[ unionIdxB + 1 + nIns ].ang ) {
+			
+			makeNewTriangles( unionIdxB + nIns );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxB + 1 + nIns );
+			makeNewTriangles( unionIdxB + 1 + nIns );
+			
+		} else {
+			
+			makeNewTriangles( unionIdxB + 1 + nIns );
+			calculateFrontAngle( unionIdxB + nIns );
+			makeNewTriangles( unionIdxB + nIns );
+			
+		}
+		
+	}
+	
+	function checkDistancesToSplit( m ) { // for new active front points
+		
+		let mj, mjIdx, ddSplit;
+		let ddSplitMin = Infinity;
+		split = false;
+		
+		for ( let i = 0; i < front.length ; i ++ ) {
+			
+			for ( let j = 0; j < n; j ++ ) { // check n new points (insertFront)
+				
+				mj = m + j;
+				
+				// except new points themselves and neighbor points
+				if ( Math.abs( i - mj ) > 3 && Math.abs( i - mj ) < front.length - 3 ) {
+					
+					mjIdx = front[ mj ].idx * 3;
+					
+					// Hint: here (1) is exceptionally new point in the front!
+					x1 = g.positions[ mjIdx ]; 
+					y1 = g.positions[ mjIdx + 1 ];
+					z1 = g.positions[ mjIdx + 2 ];
+					
+					getPoint( i );
+					
+					ddSplit = squareLength ( x1 - xp, y1 - yp, z1 - zp );
+					
+					if ( ddSplit < dd && ddSplit < ddSplitMin ) {
+						
+						ddSplitMin = ddSplit;
+						iSplit = i;
+						jSplit = mj;
+						split = true; 
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+	
+	function splitFront( iSplit, jSplit ) {
+		
+		let k;
+		
+		front[ iSplit ].ang = 0;
+		front[ jSplit ].ang = 0;
+		
+		if ( iSplit > jSplit )  { // swap
+			
+			k = jSplit;
+			jSplit = iSplit;
+			iSplit = k;
+			
+		} 
+		
+		splitIdx = iSplit;	// lower index
+		
+		partFront = [];
+		
+		// to duplicate
+		let frontI = front[ iSplit ];
+		let frontJ = front[ jSplit ];
+		
+		partFront = front.splice( iSplit + 1, jSplit - iSplit - 1 );
+		partFront.unshift( frontI );
+		partFront.push( frontJ );
+		
+		fronts.push( partFront );
+		
+		partFrontBounds( );
+		
+		frontStock += 1; // new front created
+		
+	}
+	
+	function trianglesAtSplitPoints( ) {
+		
+		nIns = 0; // count inserted points
+		
+		let idx0 = splitIdx; // splitIdx is the lower index 
+		let idx1 = splitIdx + 1;
+		
+		calculateFrontAngle( idx0 );
+		calculateFrontAngle( idx1 );
+		
+		if ( front[ idx1 ].ang < front[ idx0 ].ang ){
+		
+			makeNewTriangles( idx1 );
+			nIns += n - 1;
+			calculateFrontAngle( idx0 );
+			makeNewTriangles( idx0 );
+			
+		} else {
+			
+			makeNewTriangles( idx0 );
+			nIns += n - 1;
+			calculateFrontAngle( idx1 + nIns );
+			makeNewTriangles( idx1 + nIns );
 			
 		}
 		
@@ -1087,7 +1624,7 @@ function buildSphereWithHoles( ) {
 		
 	}
 	
-	function newTriangles( m ) {
+	function makeNewTriangles( m ) {
 		
 		//	m:  minimal angle (index)
 		
@@ -1136,7 +1673,11 @@ function buildSphereWithHoles( ) {
 			
 			indIdx += 3;
 			
-			front[ prevFront( m ) ].ang = 0;			
+			///////////////  DEBUG triangles  //////////////////////
+		 	//  stp ++;
+			////////////////////////////////////////////////////////
+			
+			front[ prevFront( m ) ].ang = 0;
 			front[ nextFront( m ) ].ang = 0;
 			
 		} else { // more then one triangle
@@ -1158,12 +1699,16 @@ function buildSphereWithHoles( ) {
 				posIdx += 3;
 				
 			}
-	
+			
 			g.indices[ indIdx     ] = front[ m ].idx;
 			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx 
 			g.indices[ indIdx + 2 ] = insertFront[ 0 ].idx;
 			
 			indIdx += 3;
+			
+			///////////////  DEBUG triangles  //////////////////////
+		 	//  stp ++;
+			////////////////////////////////////////////////////////
 			
 			front[ prevFront( m ) ].ang = 0;
 			
@@ -1175,6 +1720,10 @@ function buildSphereWithHoles( ) {
 				
 				indIdx += 3;
 				
+				///////////////  DEBUG triangles  //////////////////////
+				//  stp ++;
+				////////////////////////////////////////////////////////
+				
 			}
 			
 			g.indices[ indIdx     ] = front[ m ].idx;
@@ -1185,61 +1734,66 @@ function buildSphereWithHoles( ) {
 			
 			indIdx += 3;
 			
+			///////////////  DEBUG triangles  //////////////////////
+		 	//  stp ++;
+			////////////////////////////////////////////////////////
+			
 		}
 		
 		replaceFront( m, insertFront ); // replaces front[ m ] with new points
 		
 	}
 	
-	function trianglesAtUnionPoints( ) {
+	function makeLastTriangle( ) {
 		
-		nUnion = 0; // count inserted points
+		g.indices[ indIdx     ] = front[ 2 ].idx;
+		g.indices[ indIdx + 1 ] = front[ 1 ].idx 
+		g.indices[ indIdx + 2 ] = front[ 0 ].idx;
 		
-		frontAngle( unionIdxA );
-		frontAngle( unionIdxA + 1 );
+		indIdx += 3;
 		
-		if ( front[ unionIdxA ].ang < front[ unionIdxA + 1 ].ang ) {
-			
-			newTriangles( unionIdxA );
-			nUnion += n - 1;
-			frontAngle( unionIdxA + 1 + nUnion );
-			newTriangles( unionIdxA + 1 + nUnion );
-			nUnion += n - 1;
-			
-		} else {
-			
-			newTriangles( unionIdxA + 1 );
-			nUnion += n - 1;
-			frontAngle( unionIdxA );
-			newTriangles( unionIdxA );
-			nUnion += n - 1;
-		}
+		///////////////  DEBUG triangles  //////////////////////
+	 	// stp ++;
+		////////////////////////////////////////////////////////
 		
-		frontAngle( unionIdxB + nUnion );
-		frontAngle( unionIdxB + 1 + nUnion );
+		front = [];
 		
-		if ( front[ unionIdxB + nUnion ].ang < front[ unionIdxB + 1 + nUnion ].ang ) {
-			
-			newTriangles( unionIdxB + nUnion );
-			nUnion += n - 1;
-			frontAngle( unionIdxB + 1 + nUnion );
-			newTriangles( unionIdxB + 1 + nUnion );
-			
-		} else {
-			
-			newTriangles( unionIdxB + 1 + nUnion );
-			frontAngle( unionIdxB + nUnion );
-			newTriangles( unionIdxB + nUnion );
-			
-		}
+		fronts[ frontNo ] = [];
 		
-		united = false;
+		frontStock -= 1; // close front
 		
 	}
 	
-	// ..... help functions .....
+	function chooseNextFront( ) {
+		
+		if ( frontStock > 0 ) {
+			
+			for ( let i = 0; i < fronts.length; i ++ ) {
+				
+				if ( fronts[ i ].length > 0 ) {
+					
+					frontNo = i;
+					break;
+					
+				}
+				
+			}
+			
+			front = fronts[ frontNo ];
+			
+			smallAngles = [];
+			
+			for ( let i = 0; i < front.length; i ++ ) {
+				
+				calculateFrontAngle( i ); // recalculate angles of next front
+				
+			}
+			
+		}
+		
+	}
 	
-	function frontAngle( i ) {
+	function calculateFrontAngle( i ) {
 		
 		getPrevPoint( i ); // (1)
 		getPoint( i );
@@ -1310,36 +1864,6 @@ function buildSphereWithHoles( ) {
 		
 	}
 	
-	function uniteFront( m, i, f, j ) {
-		
-		let tmp = [];
-		
-		tmp[ 0 ] = front.slice( 0, m + i + 1 );	
-		tmp[ 1 ] = fronts[ f ].slice( j , fronts[ f ].length );
-		tmp[ 2 ] = fronts[ f ].slice( 0 , j + 1 );
-		tmp[ 3 ] = front.slice( m + i, front.length );
-		
-		unionIdxA = m + i;
-		unionIdxB = m + i + 1 + fronts[ f ].length
-		
-		front = [];
-		
-		for ( let t = 0; t < 4; t ++ ) {
-			
-			for ( let k = 0; k < tmp[ t ].length ; k ++ ) {
-				
-				front.push( tmp[ t ][ k ] );
-				
-			}
-			
-		}
-		
-		fronts[ f ] = []; // empty united front
-		
-		united = true;
-		
-	}
-	
 	function partFrontBounds( ) {
 		
 		let idx, xmin, ymin, zmin, xmax, ymax, zmax;
@@ -1388,225 +1912,6 @@ function buildSphereWithHoles( ) {
 			front.push( rear[ i ] );
 			
 		}
-		
-	}
-	
-	function storePoint( theta, phi ) {
-		
-		g.positions[ posIdx     ] = Math.sin( theta ) * Math.cos( phi );
-		g.positions[ posIdx + 1 ] = Math.cos( theta );
-		g.positions[ posIdx + 2 ] = -Math.sin( theta ) * Math.sin( phi );
-		
-		posIdx += 3;
-	
-	}
-	
-	function makeFirstTriangle ( ) {
-		
-		storePoint( 0, 0 ); // ( theta, phi )
-		storePoint( d, -Math.PI / 6 );
-		storePoint( d,  Math.PI / 6 );
-		
-		g.indices[ 0 ] = 0;
-		g.indices[ 1 ] = 1; 
-		g.indices[ 2 ] = 2;
-		
-		indIdx += 3;
-		
-		front = [];
-		
-		front.push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );
-		fronts.push( front )
-		
-	}
-	
-	function makeLastTriangle( ) {
-		
-		g.indices[ indIdx     ] = front[ 2 ].idx;
-		g.indices[ indIdx + 1 ] = front[ 1 ].idx 
-		g.indices[ indIdx + 2 ] = front[ 0 ].idx;
-		
-	}
-	
-	function makePointsHole( i ) {
-	
-		let theta, phi, count, xmin, ymin, zmin, xmax, ymax, zmax;
-		
-		xmin = ymin = zmin = Infinity;
-		xmax = ymax = zmax = -Infinity;
-		
-		fronts[ holeNumber ] = [];
-		boundings[ holeNumber ] = [];
-	
-		theta = g.holes[ i ][ 0 ];
-		phi = g.holes[ i ][ 1 ]; 
-		
-		x1 = Math.sin( theta ) * Math.cos( phi );
-		y1 = Math.cos( theta );
-		z1 = -Math.sin( theta ) * Math.sin( phi );
-		
-		for ( let j = 1; j < g.holes[ i ].length / 2 + 1; j ++ ) {
-		
-			g.positions[ posIdx     ] = x1;
-			g.positions[ posIdx + 1 ] = y1;
-			g.positions[ posIdx + 2 ] = z1;
-			
-			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
-			
-			xmin = x1 < xmin ? x1 : xmin;
-			ymin = y1 < ymin ? y1 : ymin;
-			zmin = z1 < zmin ? z1 : zmin;
-			
-			xmax = x1 > xmax ? x1 : xmax;
-			ymax = y1 > ymax ? y1 : ymax;
-			zmax = z1 > zmax ? z1 : zmax;
-			
-			posIdx += 3;
-			
-			theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
-			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
-			
-			x2 = Math.sin( theta ) * Math.cos( phi );
-			y2 = Math.cos( theta );
-			z2 = -Math.sin( theta ) * Math.sin( phi );
-			
-			xv2 = x2 - x1;
-			yv2 = y2 - y1;
-			zv2 = z2 - z1;
-			
-			len = length( xv2, yv2, zv2 );
-			
-			if ( len > d ) {
-				
-				count = Math.ceil( len / d );
-				
-				for ( let k = 1; k < count; k ++ ) {
-					
-					x = x1 + k * xv2 / count;
-					y = y1 + k * yv2 / count;
-					z = z1 + k * zv2 / count;
-					
-					len = length( x, y, z );
-					
-					g.positions[ posIdx     ] = x / len;
-					g.positions[ posIdx + 1 ] = y / len;
-					g.positions[ posIdx + 2 ] = z / len;
-					
-					fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
-					
-					xmin = x < xmin ? x : xmin;
-					ymin = y < ymin ? y : ymin;
-					zmin = z < zmin ? z : zmin;
-					
-					xmax = x > xmax ? x : xmax;
-					ymax = y > ymax ? y : ymax;
-					zmax = z > zmax ? z : zmax;
-					
-					posIdx += 3;
-					
-				}
-				
-			}
-			
-			x1 = x2;
-			y1 = y2;
-			z1 = z2;
-			
-		}
-		
-		boundings[ holeNumber ].push( xmin, xmax, ymin, ymax, zmin, zmax );
-		
-		holeNumber ++;
-		
-	}
-	
-	function makeCircularHole( i ) {
-		
-		let theta = g.holes[ i ][ 0 ];
-		let phi = g.holes[ i ][ 1 ];
-		let count = g.holes[ i ][ 2 ];
-		
-		let xmin, ymin, zmin, xmax, ymax, zmax;
-		
-		xmin = ymin = zmin = Infinity;
-		xmax = ymax = zmax = -Infinity;
-		
-		xp = Math.sin( theta ) * Math.cos( phi );
-		yp = Math.cos( theta );
-		zp = -Math.sin( theta ) * Math.sin( phi );
-		
-		let r = count / detail / 2; // radius cutting circle
-		
-		h = Math.sqrt( 1 - r * r );
-				
-		if ( !(xp === 0 && yp === 0 ) ) {
-			
-			xt1 = -yp;
-			yt1 = xp;
-			zt1 = 0;
-			
-		} else { 
-			
-			xt1 = 0;
-			yt1 = 1;
-			zt1 = 0;
-				
-		} 	
-		
-		// cross
-		
-		xt2 = yp * zt1 - zp * yt1;
-		yt2 = zp * xt1 - xp * zt1;
-		zt2 = xp * yt1 - yp * xt1;
-		
-		len = length( xt1, yt1, zt1 ); // to normalize
-		
-		xt1 = xt1 / len;
-		yt1 = yt1 / len;
-		zt1 = zt1 / len;
-		
-		len = length( xt2, yt2, zt2 ); // to normalize
-		
-		xt2 = xt2 / len;
-		yt2 = yt2 / len;
-		zt2 = zt2 / len;
-		
-		xc = h * xp;
-		yc = h * yp;
-		zc = h * zp;
-		
-		g.circles.push( [ xc, yc, zc, r, count ] ); // for external use
-		
-		fronts[ holeNumber ] = [];
-		boundings[ holeNumber ] = [];
-		
-		for ( let i = 0, phi = 0; i < count; i ++, phi += 2 * Math.PI / count ) {
-			
-			x = xc + Math.cos( phi ) * r * xt1 + Math.sin( phi ) * r * xt2;
-			y = yc + Math.cos( phi ) * r * yt1 + Math.sin( phi ) * r * yt2;
-			z = zc + Math.cos( phi ) * r * zt1 + Math.sin( phi ) * r * zt2;
-			
-			g.positions[ posIdx     ] = x;
-			g.positions[ posIdx + 1 ] = y;
-			g.positions[ posIdx + 2 ] = z;
-			
-			fronts[ holeNumber ].push( { idx: posIdx / 3, ang: 0 } );
-			
-			xmin = x < xmin ? x : xmin;
-			ymin = y < ymin ? y : ymin;
-			zmin = z < zmin ? z : zmin;
-			
-			xmax = x > xmax ? x : xmax;
-			ymax = y > ymax ? y : ymax;
-			zmax = z > zmax ? z : zmax;
-			
-			posIdx += 3;
-			
-		}
-		
-		boundings[ holeNumber ].push( xmin, xmax, ymin, ymax, zmin, zmax );
-		
-		holeNumber ++;
 		
 	}
 	
@@ -1695,7 +2000,7 @@ function createCylinderWithHoles( p ) {
 			// circular (deformed) hole, 3 elements: [ y, phi, div4Hole ], div4Hole <= div4	
 			[   0.3,  1.6, 12 ],
 			[  -0.4,  3.7, 14 ],
-			[  -0.1, -0.9, 18 ],	
+			[  -0.1, -0.9, 18 ],
 			//points hole,: array of points y, phi, ...  (last point is connected to first)
 			[ 0.15,0.45, 0.5,0.9, 0.8,0.6, 0.75,-0.2, 0.1,-0.15  ]
 		]
@@ -1732,7 +2037,7 @@ function buildCylinderWithHoles( ) {
 	const prevFront = ( i ) => ( i !== 0 ? i - 1 : front.length - 1 );
 	const nextFront  = ( i ) => ( i !== front.length - 1 ? i + 1 : 0 );
 	const detYc0 = ( xa,ya,za, xb,yb,zb, xc,zc ) => ( xa*yb*zc + ya*zb*xc - za*yb*xc - ya*xb*zc ); // determinant yc = 0;
-
+	
 	let m; // index of the current front point
 	let n; // number of new points
 	let nT; // number of new triangles
@@ -1777,18 +2082,18 @@ function buildCylinderWithHoles( ) {
 	let frontNo, frontStock;
 	let unite = false;
 	let split = false;
-		
+	
 	// define fronts for cylinder boundaries y-axis
 	
 	frontNo = 0; // active front number
 	frontStock = 0; // number of fronts still to be processed
 	makeBoundaryFront( g.btm, g.div4Btm, -g.phiBtm,  1 ); // ... , sign
 	makeBoundaryFront( g.top, g.div4Top, -g.phiTop, -1 ); // ... , sign
-		
+	
 	g.adapt = []; // array of arrays [ x0, y0, z0, rHole, div4 ], cylinder hole values for external use
 	
 	// define holes fronts
-
+	
 	for ( let i = 0; i < g.holes.length; i ++ ) {
 		
 		if ( g.holes[ i ].length === 3 ) {
@@ -1809,25 +2114,25 @@ function buildCylinderWithHoles( ) {
 	//////////////////  DEBUG triangles //////////////////////////////////
 	//  let stp = 0;
 	//////////////////////////////////////////////////////////////////////
-
+	
 	// ------ triangulation cycle -------------
 	
 	while ( frontStock > 0 ) {
 		
 		if (  !unite && !split ) { // triangulation on the front
-				
+			
 			smallAngles = [];
-		
+			
 			for ( let i = 0; i < front.length; i ++ ) {
 				
 				if( front[ i ].ang === 0 ) calculateFrontAngle( i ); // is to be recalculated (angle was set to zero)
-					
+				
 			}
 			
 			m = getMinimalAngleIndex( ); // front angle
-			makeNewTriangles( m );		
-					
-			if ( front.length > 9 && smallAngles.length === 0 ) {		
+			makeNewTriangles( m );
+			
+			if ( front.length > 9 && smallAngles.length === 0 ) {
 				
 				checkDistancesToUnite( m );
 				checkDistancesToSplit( m );
@@ -1836,7 +2141,7 @@ function buildCylinderWithHoles( ) {
 			
 			if ( front.length === 3 ) {
 				
-				makeLastTriangle( ); // last triangle closes the front								
+				makeLastTriangle( ); // last triangle closes the front
 				chooseNextFront( ); // if aviable
 				
 			}
@@ -1844,29 +2149,29 @@ function buildCylinderWithHoles( ) {
 		} else { // unite the active front to another front or split the active front
 			
 			if ( unite ) {
-
+				
 				uniteFront(  m, iUnite, fUnite, jUnite );
 				trianglesAtUnionPoints( );
-				unite = false;				
-								
-			} else if ( split ) {				
+				unite = false;
+				
+			} else if ( split ) {
 				
 				splitFront( iSplit, jSplit );
-				trianglesAtSplitPoints( );			
+				trianglesAtSplitPoints( );
 				split = false;
 				
 			}
 			
 		}
-				 
+		
 	}
 	
-	// .....  detail functions .....	
+	// .....  detail functions .....
 	
 	function makeBoundaryFront( bd, divAdp, phiAdp, sign ) {
-			
-		// bd boundary, divAdp adaptation, phiAdp rotation of adaptive-deformed circle, rotation sign		
-
+		
+		// bd boundary, divAdp adaptation, phiAdp rotation of adaptive-deformed circle, rotation sign
+		
 		const rAdp = g.d / Math.sin( Math.PI / divAdp / 4 ) / 2 ;
 		
 		let xmin, ymin, zmin, xmax, ymax, zmax;
@@ -1880,12 +2185,12 @@ function buildCylinderWithHoles( ) {
 		xmax = zmax = -Infinity;
 		
 		for ( let i = 0, phi = 0; i < g.detail; i ++, phi += Math.PI * 2 / g.detail ) {
-					
+			
 			// (adaptive-deformed) circle
 			
-			x = g.radius * Math.cos( phi );		
+			x = g.radius * Math.cos( phi );
 			y = bd + sign * ( -rAdp +  Math.sqrt( rAdp * rAdp - g.radius * g.radius * Math.cos( phi ) * Math.cos( phi ) ) );
-			z = g.radius * Math.sin( sign * phi );		
+			z = g.radius * Math.sin( sign * phi );
 			
 			if ( phiAdp !== 0 ) {
 				
@@ -1893,10 +2198,10 @@ function buildCylinderWithHoles( ) {
 				z0 = z;
 				
 				// rotate around y axis 
-				x = x0 * Math.cos( phiAdp ) - z0 * Math.sin( phiAdp ); 
+				x = x0 * Math.cos( phiAdp ) - z0 * Math.sin( phiAdp );
 				z = x0 * Math.sin( phiAdp ) + z0 * Math.cos( phiAdp );
-			}			
-					
+			}
+			
 			g.positions[ posIdx     ] = x;
 			g.positions[ posIdx + 1 ] = y;
 			g.positions[ posIdx + 2 ] = z;
@@ -1923,7 +2228,7 @@ function buildCylinderWithHoles( ) {
 	}
 	
 	function makePointsHole( i ) {
-	
+		
 		let  phi, count, xmin, ymin, zmin, xmax, ymax, zmax, xv2, yv2, zv2;
 		
 		xmin = ymin = zmin = Infinity;
@@ -1931,13 +2236,13 @@ function buildCylinderWithHoles( ) {
 		
 		fronts[ frontNo ] = [];
 		boundings[ frontNo ] = [];
-	
+		
 		phi = g.holes[ i ][ 1 ]; 
 		
 		x1 = g.radius * Math.cos( phi );
 		y1 = g.holes[ i ][ 0 ];
 		z1 = -g.radius * Math.sin( phi );
-			
+		
 		for ( let j = 1; j < g.holes[ i ].length / 2 + 1; j ++ ) {
 		
 			g.positions[ posIdx     ] = x1;
@@ -1954,7 +2259,7 @@ function buildCylinderWithHoles( ) {
 			ymax = y1 > ymax ? y1 : ymax;
 			zmax = z1 > zmax ? z1 : zmax;
 			
-			posIdx += 3;			
+			posIdx += 3;
 			
 			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
 			
@@ -1983,7 +2288,7 @@ function buildCylinderWithHoles( ) {
 					g.positions[ posIdx     ] = g.radius * x / len;
 					g.positions[ posIdx + 1 ] = y;
 					g.positions[ posIdx + 2 ] = g.radius * z / len;
-						
+					
 					fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
 					
 					xmin = x < xmin ? x : xmin;
@@ -2014,7 +2319,7 @@ function buildCylinderWithHoles( ) {
 	}
 	
 	function makeCircularHole( i ) {
-	
+		
 		let x0, z0;
 		const y0 = g.holes[ i ][ 0 ];
 		const phi = g.holes[ i ][ 1 ];
@@ -2036,16 +2341,16 @@ function buildCylinderWithHoles( ) {
 		fronts[ frontNo ] = [];
 		boundings[ frontNo ] = [];
 		
-		for ( let i = 0, alpha = 0; i < countH; i ++, alpha += 2 * Math.PI / countH ) {			
-
+		for ( let i = 0, alpha = 0; i < countH; i ++, alpha += 2 * Math.PI / countH ) {
+			
 			// (deformed) cutting circle in x-axis direction
-		
+			
 			x0 = Math.sqrt( g.radius * g.radius - rHole * rHole * Math.cos( alpha ) * Math.cos( alpha ) );
 			y = y0 + rHole * Math.sin( alpha );
 			z0 = rHole * Math.cos( alpha );
 			 
 			// rotate around y axis 
-			x = x0 * Math.cos( phi ) - z0 * Math.sin( phi ); 
+			x = x0 * Math.cos( phi ) - z0 * Math.sin( phi );
 			z = -x0 * Math.sin( phi ) - z0 * Math.cos( phi );
 			
 			g.positions[ posIdx     ] = x;
@@ -2072,10 +2377,10 @@ function buildCylinderWithHoles( ) {
 		frontStock ++;
 		
 	}
-				
-	function checkDistancesToUnite( m ) { // for new active front points
 	
-		let idxJ, xChk, yChk, zChk, ddUnite;													 				 
+	function checkDistancesToUnite( m ) { // for new active front points
+		
+		let idxJ, xChk, yChk, zChk, ddUnite;
 		let ddUniteMin = Infinity;
 		unite = false;
 		
@@ -2083,8 +2388,8 @@ function buildCylinderWithHoles( ) {
 			
 			getPoint( m + i );
 			
-			for ( let f = 0; f < fronts.length; f ++ ) { 
-			
+			for ( let f = 0; f < fronts.length; f ++ ) {
+				
 				if ( f !== frontNo ) {
 					
 					xChk = ( xp > boundings[ f ][ 0 ] - g.d ) && ( xp < boundings[ f ][ 3 ] + g.d );
@@ -2094,38 +2399,38 @@ function buildCylinderWithHoles( ) {
 					if (  xChk || yChk || zChk ) {
 						
 						for ( let j = 0; j < fronts[ f ].length; j ++ ) {
-
+							
 							idxJ = fronts[ f ][ j ].idx * 3;
 							
-							// Hint: here (2) is exceptionally point in other front! 						
-							x2 = g.positions[ idxJ ]; 
+							// Hint: here (2) is exceptionally point in other front!
+							x2 = g.positions[ idxJ ];
 							y2 = g.positions[ idxJ + 1 ];
 							z2 = g.positions[ idxJ + 2 ];
 							
 							ddUnite = squareLength ( x2 - xp, y2 - yp, z2 - zp );
-								
+							
 							if ( ddUnite < dd && ddUnite < ddUniteMin ) {
-	
-								ddUniteMin = ddUnite; 
+								
+								ddUniteMin = ddUnite;
 								iUnite = i;
 								jUnite = j;
 								fUnite = f;
-								unite = true;	
-																	
+								unite = true;
+								
 							}
-
+							
 						}
 						
 					}
 					
 				}
 				
-			}		
+			}
 			
 		}
 		
 	}
-
+	
 	function uniteFront( m, i, f, j ) {
 		
 		let tmp = [];
@@ -2155,7 +2460,7 @@ function buildCylinderWithHoles( ) {
 		frontStock -= 1; // front is eliminated
 		
 	}
-		
+	
 	function trianglesAtUnionPoints( ) {
 		
 		nIns = 0; // count inserted points
@@ -2198,15 +2503,15 @@ function buildCylinderWithHoles( ) {
 			
 		}
 		
-	}	
+	}
 	
 	function checkDistancesToSplit( m ) { // for new active front points
-	
-		let mj, mjIdx, ddSplit;		
+		
+		let mj, mjIdx, ddSplit;
 		let ddSplitMin = Infinity;
 		split = false;
-			
-		for ( let i = 0; i < front.length ; i ++ ) {		
+		
+		for ( let i = 0; i < front.length ; i ++ ) {
 			
 			for ( let j = 0; j < n; j ++ ) { // check n new points (insertFront)
 			
@@ -2214,21 +2519,21 @@ function buildCylinderWithHoles( ) {
 				
 				// except new points themselves and neighbor points
 				if ( Math.abs( i - mj ) > 3 && Math.abs( i - mj ) < front.length - 3 ) {
-				
+					
 					mjIdx = front[ mj ].idx * 3;
-				
-					// Hint: here (1) is exceptionally new point in the front!				
+					
+					// Hint: here (1) is exceptionally new point in the front!
 					x1 = g.positions[ mjIdx ]; 
 					y1 = g.positions[ mjIdx + 1 ];
 					z1 = g.positions[ mjIdx + 2 ];
-
+					
 					getPoint( i );
 					
 					ddSplit = squareLength ( x1 - xp, y1 - yp, z1 - zp );
 					
 					if ( ddSplit < dd && ddSplit < ddSplitMin ) {
-
-						ddSplitMin = ddSplit;					
+						
+						ddSplitMin = ddSplit;
 						iSplit = i;
 						jSplit = mj;
 						split = true; 
@@ -2239,10 +2544,10 @@ function buildCylinderWithHoles( ) {
 				
 			}
 			
-		}										
-			
-	}
+		}
 		
+	}
+	
 	function splitFront( iSplit, jSplit ) {
 		
 		let k;
@@ -2263,7 +2568,7 @@ function buildCylinderWithHoles( ) {
 		partFront = [];
 		
 		// to duplicate
-		let frontI = front[ iSplit ];		
+		let frontI = front[ iSplit ];
 		let frontJ = front[ jSplit ];
 		
 		partFront = front.splice( iSplit + 1, jSplit - iSplit - 1 );
@@ -2289,15 +2594,15 @@ function buildCylinderWithHoles( ) {
 		calculateFrontAngle( idx1 );
 		
 		if ( front[ idx1 ].ang < front[ idx0 ].ang ){
-		
-			makeNewTriangles( idx1 );			
+			
+			makeNewTriangles( idx1 );
 			nIns += n - 1;
 			calculateFrontAngle( idx0 );
 			makeNewTriangles( idx0 );
 			
 		} else {
 			
-			makeNewTriangles( idx0 );			
+			makeNewTriangles( idx0 );
 			nIns += n - 1;
 			calculateFrontAngle( idx1 + nIns );
 			makeNewTriangles( idx1 + nIns );
@@ -2305,7 +2610,7 @@ function buildCylinderWithHoles( ) {
 		}
 		
 	}
-
+	
 	function getMinimalAngleIndex( ) {
 		
 		let angle = Infinity;
@@ -2317,11 +2622,11 @@ function buildCylinderWithHoles( ) {
 				
 				angle = front[ i ].ang ;
 				m = i;
-					
+				
 			}
 			
 		}
-
+		
 		return m;
 		
 	}
@@ -2340,7 +2645,7 @@ function buildCylinderWithHoles( ) {
 		getNextPoint( m );
 		
 		d1 = length( x1 - xp, y1 - yp, z1 - zp );
-		d2 = length( x2 - xp, y2 - yp, z2 - zp );	
+		d2 = length( x2 - xp, y2 - yp, z2 - zp );
 		d12 = length( x2 - x1, y2 - y1, z2 - z1 );
 		
 		// correction of dAng, nT in extreme cases
@@ -2377,24 +2682,24 @@ function buildCylinderWithHoles( ) {
 			
 			///////////////  DEBUG triangles  //////////////////////
 		 	// stp ++;
-			////////////////////////////////////////////////////////	 
-					
-			front[ prevFront( m ) ].ang = 0;		
-			front[ nextFront( m ) ].ang = 0;			
+			////////////////////////////////////////////////////////
 			
-			front.splice( m, 1 ); // delete point with index m from the front	
-				
+			front[ prevFront( m ) ].ang = 0;
+			front[ nextFront( m ) ].ang = 0;
+			
+			front.splice( m, 1 ); // delete point with index m from the front
+			
 		} else { // more then one triangle
 			
 			xc = xp;
 			yc = yp;
 			zc = zp;
-
+			
 			for ( let i = 0,  phi = dAng; i < n; i ++, phi += dAng ) {
 				
 				xp = xc + Math.cos( phi ) * g.d * xt1 + Math.sin( phi ) * g.d * xt2; 
 				yp = yc + Math.cos( phi ) * g.d * yt1 + Math.sin( phi ) * g.d * yt2;
-				zp = zc + Math.cos( phi ) * g.d * zt1 + Math.sin( phi ) * g.d * zt2;			
+				zp = zc + Math.cos( phi ) * g.d * zt1 + Math.sin( phi ) * g.d * zt2;
 				
 				len = lenXZ( xp, zp );   // to bring the point to the surface (radius * ..)
 				
@@ -2404,12 +2709,12 @@ function buildCylinderWithHoles( ) {
 				
 				insertFront.push( { idx: posIdx / 3, ang: 0 } );
 				
-				posIdx += 3;				
-						
-			}	
+				posIdx += 3;
+				
+			}
 			
 			g.indices[ indIdx     ] = front[ m ].idx;
-			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx 
+			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx;
 			g.indices[ indIdx + 2 ] = insertFront[ 0 ].idx;
 			
 			indIdx += 3;
@@ -2417,7 +2722,7 @@ function buildCylinderWithHoles( ) {
 			///////////////  DEBUG  triangles  /////////////////////
 		 	// stp ++;
 			////////////////////////////////////////////////////////
-				
+			
 			front[ prevFront( m ) ].ang = 0;
 			
 			for ( let i = 0; i < n - 1; i ++ ) {
@@ -2427,7 +2732,7 @@ function buildCylinderWithHoles( ) {
 				g.indices[ indIdx + 2 ] = insertFront[ i + 1 ].idx;
 				
 				indIdx += 3;
-
+				
 				///////////////  DEBUG triangles  //////////////////////
 				// stp ++;
 				////////////////////////////////////////////////////////
@@ -2441,17 +2746,17 @@ function buildCylinderWithHoles( ) {
 			front[ nextFront( m ) ].ang = 0;
 			
 			indIdx += 3;
-						
+			
 			///////////////  DEBUG triangles  //////////////////////
 		 	// stp ++;
 			////////////////////////////////////////////////////////
-					
+			
 			replaceFront( m, insertFront ); // replaces front[ m ] with new points
 			
 		}
-			
+		
 	}
-
+	
 	function makeLastTriangle( ) {
 		
 		g.indices[ indIdx     ] = front[ 2 ].idx;
@@ -2459,7 +2764,7 @@ function buildCylinderWithHoles( ) {
 		g.indices[ indIdx + 2 ] = front[ 0 ].idx;
 		
 		indIdx += 3;
-			
+		
 		///////////////  DEBUG triangles  //////////////////////
 	 	// stp ++;
 		////////////////////////////////////////////////////////
@@ -2477,7 +2782,7 @@ function buildCylinderWithHoles( ) {
 		if ( frontStock > 0 ) {
 			
 			for ( let i = 0; i < fronts.length; i ++ ) {
-			
+				
 				if ( fronts[ i ].length > 0 ) {
 					
 					frontNo = i;
@@ -2490,25 +2795,25 @@ function buildCylinderWithHoles( ) {
 			front = fronts[ frontNo ];
 			
 			smallAngles = [];
-		
+			
 			for ( let i = 0; i < front.length; i ++ ) {
 				
 				calculateFrontAngle( i ); // recalculate angles of next front
-					
+				
 			}
 			
 		}
 		
 	}
-
+	
 	function atan2PI( x, y ) {
 		
 		let phi = Math.atan2( y, x );
 		
 		if ( phi < 0 ) phi = phi + Math.PI * 2;
-
+		
 		return phi;
-			
+		
 	}
 	
 	function coordTangentialSystem( ) {
@@ -2525,8 +2830,8 @@ function buildCylinderWithHoles( ) {
 		
 	}
 	
-	function calculateFrontAngle( i ) {		
-			
+	function calculateFrontAngle( i ) {
+		
 		let ang1, ang2;
 		
 		getSystemAtPoint( i );
@@ -2539,7 +2844,7 @@ function buildCylinderWithHoles( ) {
 		
 		if ( ang2 < ang1 )  ang2 += Math.PI * 2;
 		
-        front[ i ].ang  = ang2 - ang1;
+		front[ i ].ang  = ang2 - ang1;
 		
 		if ( front[ i ].ang < 1.5 ) smallAngles.push( i );
 		
@@ -2595,7 +2900,7 @@ function buildCylinderWithHoles( ) {
 		}
 		
 	}
-
+	
 	function getSystemAtPoint( i ) {
 		
 		getPrevPoint( i );
@@ -2604,18 +2909,18 @@ function buildCylinderWithHoles( ) {
 		len = lenXZ( xp, zp );
 		xn = xp / len;
 		zn = zp / len;
-
-		// cross,  cylinder:  yn=0  
-
+		
+		// cross,  cylinder:  yn=0
+		
 		xt2 = -zn * ( y1 - yp );
 		yt2 = zn * ( x1 - xp ) - xn * ( z1 - zp );
 		zt2 = xn * ( y1 - yp );
-	
+		
 		len = length( xt2, yt2, zt2 ); // to normalize
 		
 		xt2 = xt2 / len;
 		yt2 = yt2 / len;
-		zt2 = zt2 / len; 	
+		zt2 = zt2 / len;
 		
 		// cross
 		xt1 = yt2 * zn;
@@ -2623,12 +2928,12 @@ function buildCylinderWithHoles( ) {
 		zt1 = -yt2 * xn;
 		
 	}
-		 	
+	
 	function getPrevPoint( i ) {
 		
 		frontPosIdx = front[ prevFront( i ) ].idx * 3;
 		
-		x1 = g.positions[ frontPosIdx ]; 
+		x1 = g.positions[ frontPosIdx ];
 		y1 = g.positions[ frontPosIdx + 1 ];
 		z1 = g.positions[ frontPosIdx + 2 ];
 		
@@ -2638,7 +2943,7 @@ function buildCylinderWithHoles( ) {
 		
 		frontPosIdx = front[ i ].idx * 3;
 		
-		xp = g.positions[ frontPosIdx ]; 
+		xp = g.positions[ frontPosIdx ];
 		yp = g.positions[ frontPosIdx + 1 ];
 		zp = g.positions[ frontPosIdx + 2 ];
 		
@@ -2675,7 +2980,7 @@ function createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, opt ) {
 		e   epsilon for iteration Newton
 		
 		opt optional object, all properties also optional
-			{ 	
+			{
 				fc:  faces //( max. number of triangles )
 				pc:  positions // ( max. number of points )
 				b:   bounds //  array [ xMax, xMin, yMax, yMin, zMax, zMin ]
@@ -2785,11 +3090,11 @@ function buildImplicitSurface( ) {
 		boundings.push( [] );
 		
 		let frontStock = 0; // number of fronts still to be processed
-		let activeFrontNo = 0;
-		front = fronts[ activeFrontNo ];
+		let frontNo = 0;
+		front = fronts[ frontNo ];
 		
 		///////////////////// DEBUG triangles /////////////////////////
-		 let stp = 0; 
+		// let stp = 0; 
 		///////////////////////////////////////////////////////////////
 		
 		makeFirstTriangle( ); // first triangle creates a front
@@ -2799,7 +3104,7 @@ function buildImplicitSurface( ) {
 		while ( frontStock > 0 ) {	
 			
 			if (  !unite && !split ) { // triangulation on the front
-					
+				
 				smallAngles = [];
 				
 				for ( let i = 0; i < front.length; i ++ ) {
@@ -2844,7 +3149,7 @@ function buildImplicitSurface( ) {
 			}
 			
 			/////////////// DEBUG triangles /////////////////////
-			//if ( stp > 100 ) break;
+			// if ( stp > 100 ) break;
 			///////////////////////////////////////////////////////
 			
 		}
@@ -2885,7 +3190,7 @@ function buildImplicitSurface( ) {
 			zc = zp;
 			
 			phi = 0;
-		
+			
 			for ( let i = 0; i < 2; i ++ ) {
 				
 				calculateSurfacePointAndNormal( );
@@ -2909,7 +3214,7 @@ function buildImplicitSurface( ) {
 		}
 		
 		function checkDistancesToUnite( m ) { // for new active front points
-		
+			
 			let idxJ, xChk, yChk, zChk, ddUnite;
 			let ddUniteMin = Infinity;
 			unite = false;
@@ -2918,9 +3223,9 @@ function buildImplicitSurface( ) {
 				
 				getPoint( m + i );
 				
-				for ( let f = 0; f < fronts.length; f ++ ) { 
+				for ( let f = 0; f < fronts.length; f ++ ) {
 					
-					if ( f !== activeFrontNo ) {
+					if ( f !== frontNo ) {
 						
 						xChk = ( xp > boundings[ f ][ 0 ] - d ) && ( xp < boundings[ f ][ 3 ] + d );
 						yChk = ( yp > boundings[ f ][ 1 ] - d ) && ( yp < boundings[ f ][ 4 ] + d );
@@ -3033,7 +3338,7 @@ function buildImplicitSurface( ) {
 				
 			}
 			
-		}	
+		}
 		
 		function checkDistancesToSplit( m ) { // for new active front points
 			
@@ -3214,7 +3519,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -3251,7 +3556,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -3265,7 +3570,7 @@ function buildImplicitSurface( ) {
 					indIdx += 3;
 					
 					/////////////// DEBUG triangles ///////////////////////
-					stp ++
+					// stp ++
 					///////////////////////////////////////////////////////
 					
 				}
@@ -3279,7 +3584,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				replaceFront( m, insertFront ); // replaces front[ m ] with new points
@@ -3297,12 +3602,12 @@ function buildImplicitSurface( ) {
 			indIdx += 3;
 			
 			/////////////// DEBUG triangles ///////////////////////
-			stp ++
+			// stp ++
 			///////////////////////////////////////////////////////
 			
 			front = [];
 			
-			fronts[ activeFrontNo ] = [];
+			fronts[ frontNo ] = [];
 			
 			frontStock -= 1; // close front
 			
@@ -3316,14 +3621,14 @@ function buildImplicitSurface( ) {
 					
 					if ( fronts[ i ].length > 0 ) {
 						
-						activeFrontNo = i;
+						frontNo = i;
 						break;
 						
 					}
 					
 				}
 				
-				front = fronts[ activeFrontNo ];
+				front = fronts[ frontNo ];
 				
 				smallAngles = [];
 				
@@ -3507,7 +3812,7 @@ function buildImplicitSurface( ) {
 		}
 		
 		function getNormal( i ){
-		
+			
 			frontPosIdx = front[ i ].idx * 3;
 			
 			xn = g.normals[ frontPosIdx ]; 
@@ -3541,7 +3846,7 @@ function buildImplicitSurface( ) {
 			
 			frontPosIdx = front[ prevFront( i ) ].idx * 3;
 			
-			x1 = g.positions[ frontPosIdx ]; 
+			x1 = g.positions[ frontPosIdx ];
 			y1 = g.positions[ frontPosIdx + 1 ];
 			z1 = g.positions[ frontPosIdx + 2 ];
 			
@@ -3551,7 +3856,7 @@ function buildImplicitSurface( ) {
 			
 			frontPosIdx = front[ i ].idx * 3;
 			
-			xp = g.positions[ frontPosIdx ]; 
+			xp = g.positions[ frontPosIdx ];
 			yp = g.positions[ frontPosIdx + 1 ];
 			zp = g.positions[ frontPosIdx + 2 ];
 			
@@ -3572,7 +3877,7 @@ function buildImplicitSurface( ) {
 	// +++ Variant with boundaries, somewhat more effort, absolutely necessary for infinite surfaces such as cylinders and cones. +++
 	
 	function triangulationBounds( isf, dx, dy, dz, xs, ys, zs, d, e, fc, pc, b ) {
-	
+		
 		let	bd = b; // make compatible in function
 		
 		const squareLength = ( x,y,z ) => ( x*x + y*y + z*z );
@@ -3633,13 +3938,13 @@ function buildImplicitSurface( ) {
 		boundings.push( [] );
 		
 		let frontStock = 0; // number of fronts still to be processed
-		let activeFrontNo = 0;
-		front = fronts[ activeFrontNo ];
+		let frontNo = 0;
+		front = fronts[ frontNo ];
 		
 		let pCount; // count available points in active front
 		
 		///////////////////// DEBUG triangles /////////////////////////
-		let stp = 0; 
+		// let stp = 0; 
 		///////////////////////////////////////////////////////////////
 		
 		makeFirstTriangle( ); // first triangle creates a front
@@ -3682,7 +3987,7 @@ function buildImplicitSurface( ) {
 					if ( front.length === 3 ) makeLastTriangle( );
 					
 					front = [];
-					fronts[ activeFrontNo ] = [];
+					fronts[ frontNo ] = [];
 					frontStock -= 1;
 					chooseNextFront( ); // if available
 					
@@ -3710,7 +4015,7 @@ function buildImplicitSurface( ) {
 			}
 			
 			/////////////// DEBUG triangles /////////////////////
-			//if ( stp > 500 ) break;
+			// if ( stp > 500 ) break;
 			///////////////////////////////////////////////////////
 			
 		}
@@ -3775,7 +4080,7 @@ function buildImplicitSurface( ) {
 		}
 		
 		function checkDistancesToUnite( m ) { // for new active front points
-		
+			
 			let idxJ, xChk, yChk, zChk, ddUnite;
 			let ddUniteMin = Infinity;
 			unite = false;
@@ -3786,9 +4091,9 @@ function buildImplicitSurface( ) {
 					
 					getPoint( m + i );
 					
-					for ( let f = 0; f < fronts.length; f ++ ) { 
+					for ( let f = 0; f < fronts.length; f ++ ) {
 						
-						if ( f !== activeFrontNo ) {
+						if ( f !== frontNo ) {
 							
 							xChk = ( xp > boundings[ f ][ 0 ] - d ) && ( xp < boundings[ f ][ 3 ] + d );
 							yChk = ( yp > boundings[ f ][ 1 ] - d ) && ( yp < boundings[ f ][ 4 ] + d );
@@ -3811,7 +4116,7 @@ function buildImplicitSurface( ) {
 										
 										if ( ddUnite < dd && ddUnite < ddUniteMin ) {
 											
-											ddUniteMin = ddUnite; 
+											ddUniteMin = ddUnite;
 											iUnite = i;
 											jUnite = j;
 											fUnite = f;
@@ -3907,29 +4212,29 @@ function buildImplicitSurface( ) {
 				
 			}
 			
-		}	
+		}
 		
 		function checkDistancesToSplit( m ) { // for new active front points
-		
+			
 			let mj, mjIdx, ddSplit;
 			let ddSplitMin = Infinity;
 			split = false;
-				
+			
 			for ( let i = 0; i < front.length ; i ++ ) {
 				
 				if ( !front[ i ].bou ) { // not for boundary point
 					
 					for ( let j = 0; j < n; j ++ ) { // check n new points (insertFront)
-					
+						
 						mj = m + j;
 						
 						// except new points themselves, neighbor and boundary points
 						if ( Math.abs( i - mj ) > 3 && Math.abs( i - mj ) < front.length - 3 && !front[ mj ].bou ) {
 							
 							mjIdx = front[ mj ].idx * 3;
-						
+							
 							// Hint: here (1) is exceptionally new point in the front!
-							x1 = g.positions[ mjIdx ]; 
+							x1 = g.positions[ mjIdx ];
 							y1 = g.positions[ mjIdx + 1 ];
 							z1 = g.positions[ mjIdx + 2 ];
 							
@@ -3942,7 +4247,7 @@ function buildImplicitSurface( ) {
 								ddSplitMin = ddSplit;
 								iSplit = i;
 								jSplit = mj;
-								split = true; 
+								split = true;
 								
 							}
 							
@@ -4002,7 +4307,7 @@ function buildImplicitSurface( ) {
 			calculateFrontAngle( idx1 );
 			
 			if ( front[ idx1 ].ang < front[ idx0 ].ang ){
-			
+				
 				makeNewTriangles( idx1 );
 				nIns += n - 1;
 				calculateFrontAngle( idx0 );
@@ -4018,7 +4323,7 @@ function buildImplicitSurface( ) {
 			}
 			
 		}
-	
+		
 		function getMinimalAngleIndex( ) {
 			
 			let angle = Infinity;
@@ -4086,20 +4391,20 @@ function buildImplicitSurface( ) {
 			if ( n === 0 ) { // one triangle
 				
 				g.indices[ indIdx     ] = front[ m ].idx;
-				g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx; 
+				g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx;
 				g.indices[ indIdx + 2 ] = front[ nextFront( m ) ].idx;
 				
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
 				front[ nextFront( m ) ].ang = 0;
 				
 				front.splice( m, 1 ); // delete point with index m from the front
-					
+				
 			} else { // more then one triangle
 				
 				// point p is center of circle in tangent plane
@@ -4141,7 +4446,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				front[ prevFront( m ) ].ang = 0;
@@ -4155,7 +4460,7 @@ function buildImplicitSurface( ) {
 					indIdx += 3;
 					
 					/////////////// DEBUG triangles ///////////////////////
-					stp ++
+					// stp ++
 					///////////////////////////////////////////////////////
 					
 				}
@@ -4169,7 +4474,7 @@ function buildImplicitSurface( ) {
 				indIdx += 3;
 				
 				/////////////// DEBUG triangles ///////////////////////
-				stp ++
+				// stp ++
 				///////////////////////////////////////////////////////
 				
 				replaceFront( m, insertFront ); // replaces front[ m ] with new points
@@ -4185,9 +4490,9 @@ function buildImplicitSurface( ) {
 			g.indices[ indIdx + 2 ] = front[ 0 ].idx;
 			
 			indIdx += 3;
-				
+			
 			/////////////// DEBUG triangles ///////////////////////
-			stp ++;
+			// stp ++;
 			///////////////////////////////////////////////////////
 			
 			front = [];
@@ -4206,17 +4511,17 @@ function buildImplicitSurface( ) {
 					
 					if ( fronts[ i ].length > 0 ) {
 						
-						activeFrontNo = i;
+						frontNo = i;
 						break;
 						
 					}
 					
 				}
 				
-				front = fronts[ activeFrontNo ];
+				front = fronts[ frontNo ];
 				
 				smallAngles = [];
-					
+				
 				for ( let i = 0; i < front.length; i ++ ) {
 					
 					calculateFrontAngle( i ); // recalculate angles of next front
@@ -4231,7 +4536,7 @@ function buildImplicitSurface( ) {
 			
 			if( !bdPoint ) {
 				
-				xp = xc + Math.cos( phi ) * d * xt1 + Math.sin( phi ) * d * xt2; 
+				xp = xc + Math.cos( phi ) * d * xt1 + Math.sin( phi ) * d * xt2;
 				yp = yc + Math.cos( phi ) * d * yt1 + Math.sin( phi ) * d * yt2;
 				zp = zc + Math.cos( phi ) * d * zt1 + Math.sin( phi ) * d * zt2;
 				
@@ -4244,8 +4549,8 @@ function buildImplicitSurface( ) {
 				zp = zp > bd[ 4 ] ? bd[ 4 ] : zp;
 				zp = zp < bd[ 5 ] ? bd[ 5 ] : zp;
 				
-			}	
-				
+			}
+			
 			iterationNewton ( ); 
 			
 			g.positions[ posIdx     ] = xp;
@@ -4420,10 +4725,10 @@ function buildImplicitSurface( ) {
 		}
 		
 		function getNormal( i ){
-		
+			
 			frontPosIdx = front[ i ].idx * 3;
 			
-			xn = g.normals[ frontPosIdx ]; 
+			xn = g.normals[ frontPosIdx ];
 			yn = g.normals[ frontPosIdx + 1 ];
 			zn = g.normals[ frontPosIdx + 2 ];
 			
@@ -4454,7 +4759,7 @@ function buildImplicitSurface( ) {
 			
 			frontPosIdx = front[ prevFront( i ) ].idx * 3;
 			
-			x1 = g.positions[ frontPosIdx ]; 
+			x1 = g.positions[ frontPosIdx ];
 			y1 = g.positions[ frontPosIdx + 1 ];
 			z1 = g.positions[ frontPosIdx + 2 ];
 			
@@ -4464,7 +4769,7 @@ function buildImplicitSurface( ) {
 			
 			frontPosIdx = front[ i ].idx * 3;
 			
-			xp = g.positions[ frontPosIdx ]; 
+			xp = g.positions[ frontPosIdx ];
 			yp = g.positions[ frontPosIdx + 1 ];
 			zp = g.positions[ frontPosIdx + 2 ];
 			
