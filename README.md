@@ -20,6 +20,10 @@ en: https://en.wikipedia.org/wiki/Implicit_surface
 
 @author hofk / http://sandbox.threejs.hofk.de/ or http://sandboxthreei.threejs.hofk.de/
 
+----------------------------------------------------------
+
+Replace from revision 110 .addAttribute with .setAttribute.
+
 For more efficiency.
 
 Each single geometry section between ............................. name ............................. can be deleted.
