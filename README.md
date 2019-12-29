@@ -1,6 +1,7 @@
 # THREEi
 three.js addon for triangulation of implicit surfaces and for forms with holes. The addon generates indexed BufferGeometries.
 
+*License identical to three.js*
 
 #### Algorithmus nach / Algorithm based on E. Hartmann.
 
