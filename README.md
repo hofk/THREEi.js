@@ -196,6 +196,72 @@ scene.add( mesh2 );
 
 ---
 
+// .................................................................. Inner Geometry (Triangulation)  .........................................................................
+// ............................................................ combines sphere, cylinder and other - with holes .........................................................................
+
+Different shapes with holes can be created. For this purpose some functions of triangulation are adapted by case discrimination. 
+This function then uses the appropriate mathematics for the geometry (normal, surface point …).
+
+The geometry is realized as indexed BufferGeometry.
+
+```javascript
+const g = new THREE.BufferGeometry( );
+g.createInnerGeometry = THREEi.createInnerGeometry;
+g.createInnerGeometry( parameters );
+
+ ``` 
+
+####  EXAMPLE:
+
+```javascript
+const g = new THREE.BufferGeometry( );
+
+const parameters = {
+
+	// excenter unit: '%' of the radius, 'd' factor to d, 'v' value
+	
+	surface: 'cylinder',
+	
+	d: 0.3, // rough side length of the triangles
+	div4: 12, // division of the quarter circle
+	
+	geoBtm: 'cylinder', // solid to be adapted
+	btm:  -4.5,	 // NOTE! now btm and top are used 
+	div4Btm: 18,
+	excBtm: 0.819,
+	excBtmUnit: 'v',
+	
+	geoTop: 'sphere', // solid to be adapted
+	top: 3.2,
+	div4Top: 24,	
+	excTop: 2.25,
+	excTopUnit: 'v',
+	
+	holes: [
+	
+		// excentric (exc) hole to conect a cylinder: [ 'cylinder', div4Adp, y, phi, exc, unit, tilt, <optional: side> ]
+		[ 'cylinder', 4, 0, 0, 1.9, 'v', 0.8, '+-' ], // side is ignored for connected hole
+		
+	]
+
+}
+
+g.createInnerGeometry = THREEi.createInnerGeometry;
+g.createInnerGeometry( parameters );
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x006600, transparent: true, opacity: 0.9 } );
+
+const mesh1 = new THREE.Mesh( g, material1 );
+scene.add( mesh1 );
+const mesh2 = new THREE.Mesh( g, material2 );
+scene.add( mesh2 );
+
+ ```
+Other forms see in the example folder.
+
+---
+
 .................................................................... Implicit Surface (Triangulation) ..............................................................................
 
 Algorithm modified.
