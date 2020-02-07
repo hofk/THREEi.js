@@ -1,7 +1,7 @@
-// THREEi.js ( rev 109.0 )
+// THREEi.js ( rev 113.0 )
 
 /**
- * @author hofk / http://threejs.hofk.de/
+ * @author hofk / https://threejs.hofk.de/
 */
 
 (function (global, factory) {
@@ -2964,6 +2964,2093 @@ function buildCylinderWithHoles( ) {
 exports.createCylinderWithHoles = createCylinderWithHoles;
 exports.buildCylinderWithHoles = buildCylinderWithHoles;
 
+// .............................. Inner Geometry (Triangulation) ....................................
+// .................... combines sphere, cylinder and other - with holes ............................
+
+function createInnerGeometry( p ) {
+	
+	g = this;  //  THREE.BufferGeometry() - geometry object from three.js
+	
+	g.surface = p.surface !== undefined ? p.surface : 'polygon';
+	g.holes = p.holes !== undefined ? p.holes : [];
+	
+	parametersToSurface( ); // with defaults
+	
+	
+	function parametersToSurface( ) {
+		
+		if ( g.surface === 'polygon' ) {
+			
+			g.d = p.d !== undefined ? p.d : 0.1;
+			g.polygonN = p.polygonN !== undefined ? p.polygonN : 6;
+			g.divN = p.divN !== undefined ? p.divN : 10;
+			
+			g.detail = g.polygonN * g.divN;
+			g.radius = g.d * g.detail / Math.PI / 2; // radius, for external use as well
+		
+		}
+		
+		if ( g.surface === 'outline' ) {
+			
+			g.d = p.d !== undefined ? p.d : 0.1;
+			g.points = p.points !== undefined ? p.points : [ 1,1, -1,1, -1,-1,  1,-1 ];
+			
+			g.detail = 8 / g.d;
+			
+		}
+		
+		if ( g.surface === 'rectangle' ) {
+		
+			g.d = p.d !== undefined ? p.d : 0.1;
+			g.divW = p.divW !== undefined ? p.divW : 10;
+			g.divH = p.divH !== undefined ? p.divH : 10;
+			
+			g.detail = (g.divW + g.divH ) * 2;
+			
+		}
+		
+		if ( g.surface === 'circle' || g.surface === 'sphere' ) {
+		
+			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
+			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24 circle divisions
+			
+			g.detail = g.div4 * 4; // division of the great circle
+			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // radius, for external use as well
+			
+		}
+		
+		if ( g.surface === 'planecap' ) { // ellipse (circle) as bottom or top of a tilted (0) cut cylinder
+			
+			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
+			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24  divisions of associated cylinder
+			g.tilt = p.tilt !== undefined ? p.tilt : 0; // tilt of adaption to the associated cylinder
+			
+			g.detail = g.div4 * 4; // division of the associated cylinder circle
+			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // equals ellipse minor semi-axis b for external use as well
+			g.major = g.radius / Math.cos( g.tilt )  // ellipse major semi-axis a for external use as well
+			g.sintilt = Math.sin( g.tilt );
+			g.costilt = Math.cos( g.tilt );
+			
+		}	
+			
+		if ( g.surface === 'cylinder' ) {
+			
+			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
+			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24 circle divisions
+			
+			// bottom
+			g.geoBtm = p.geoBtm !== undefined ? p.geoBtm : 'plane';
+			g.btm = p.btm !== undefined ? p.btm : -1; // y Min
+			g.div4Btm = p.div4Btm !== undefined ? p.div4Btm : Number.MAX_SAFE_INTEGER;
+			g.phiBtm = p.phiBtm !== undefined ? p.phiBtm : 0; // rotation of adaptation
+			g.excBtm = p.excBtm !== undefined ? p.excBtm : 0; // excenter of adaptation
+			g.excUnitBtm = p.excUnitBtm !== undefined ? p.excUnitBtm : 'v'; // excenter unit
+			g.tiltBtm = p.tiltBtm !== undefined ? p.tiltBtm : 0; // tilt of adaption
+			
+			// top
+			g.geoTop = p.geoTop !== undefined ? p.geoTop : 'plane';
+			g.top = p.top !== undefined ? p.top : 1; // y Max
+			g.div4Top = p.div4Top !== undefined ? p.div4Top : Number.MAX_SAFE_INTEGER;
+			g.phiTop = p.phiTop !== undefined ? p.phiTop : 0; // rotation of adaptation
+			g.excTop = p.excTop !== undefined ? p.excTop : 0; // excenter of adaptation
+			g.excUnitTop = p.excUnitTop !== undefined ? p.excUnitTop : 'v'; // excenter unit
+			g.tiltTop = p.tiltTop !== undefined ? p.tiltTop : 0; // tilt of adaption
+			
+			g.detail = g.div4 * 4; // division of the circle
+			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // radius, for external use as well
+			
+		}
+		
+	}
+	
+	g.buildInnerGeometry = buildInnerGeometry;
+	g.buildInnerGeometry( );
+	
+}
+
+function buildInnerGeometry( p ) {
+	
+	const dd = g.d * g.d;
+	
+	const squareLength = ( x,y,z ) => ( x*x + y*y + z*z );
+	const length = ( x, y, z ) => ( Math.sqrt( x * x + y * y + z * z ) );
+	const lenXZ = ( x, z ) => ( Math.sqrt( x * x + z * z ) );
+	const prevFront = ( i ) => ( i !== 0 ? i - 1 : front.length - 1 );
+	const nextFront  = ( i ) => ( i !== front.length - 1 ? i + 1 : 0 );
+	const determinant = ( xa,ya,za, xb,yb,zb, xc,yc,zc ) => ( xa*yb*zc + ya*zb*xc + za*xb*yc - za*yb*xc - xa*zb*yc - ya*xb*zc );
+	
+	let m; // index of the current front point
+	let n; // number of new points
+	let nT; // number of new triangles
+	let nIns; // number of new points (after union or split)
+	let dAng; // partial angle
+	let len, d1, d2, d12; // lengths
+	let iSplit, jSplit; // split front indices  
+	let iUnite, jUnite, fUnite; // unite front indices, front number (to unite) 
+	
+	// points and vectors
+	let x, y, z, xp, yp, zp; // coordinates point and actual point p
+	let x1, y1, z1, x2, y2, z2; // previous and next point to p in front
+	let xn, yn, zn; // normal, gradient
+	let xt1, yt1, zt1, xt2, yt2, zt2; // tangents
+	let xs1, ys1, xs2, ys2; // p in tangential system (only x, y required)
+	let xc, yc, zc; // actual point as center point for new points
+	
+	// for boundaries and holes 
+	let xmin, ymin, zmin, xmax, ymax, zmax; // for bounding boxes
+	let x0, y0, z0, x11, y11, z11; // points to memorize
+	let xa, ya, za, xb, yb; // actual point p for rotation around axes
+	let dx, dy, dz, dyzdx, dxzdy, sqlen0, sqlen1, posLen, h; // vector, length
+	let theta, phi, psi, psi0, dpsi, psiBound, psiStart, psiEnd, sinpsi, cospsi, sintilt, costilt, tantilt; // angles
+	let yOff, exc, tilt; // parameter
+	let count, side, sign, reverseOrder, endPoint, slope, r0,r1, dsc, rex, connected, unit, t; ; // calculation interim values
+	
+	//  preparation
+	
+	const faceCount = g.detail * g.detail * 30 ;
+	const posCount  = g.detail * g.detail * 20 ;
+	
+	g.indices = new Uint32Array( faceCount * 3 );
+	g.positions = new Float32Array( posCount * 3 );
+	
+	g.setIndex( new THREE.BufferAttribute( g.indices, 1 ) );
+	g.setAttribute( 'position', new THREE.BufferAttribute( g.positions, 3 ) );
+	
+	let posIdx = 0;
+	let indIdx = 0;
+	let frontPosIdx, unionIdxA, unionIdxB, splitIdx;
+	
+	let front = []; // active front // front[ i ]: object { idx: 0, ang: 0 }
+	let partFront = []; // separated part of the active front (to split)
+	let insertFront = []; // new front points to insert into active front
+	let fronts = []; // all fronts
+	let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+	let boundings = []; // fronts bounding boxes
+	let smallAngles = []; // new angles < 1.5
+	
+	let outline = []; // for plane surfaces
+	let pos = []; // hole and boundaries positions during calculation
+	
+	let frontNo, frontStock;
+	let unite = false;
+	let split = false;
+	
+	frontNo = 0; // active front number
+	frontStock = 0; // number of fronts still to be processed
+	
+	defineBoundsAndHoles( );
+	
+	if ( frontStock === 0 ) makeFirstTriangle( );
+	
+	frontNo = 0; // active front number initial again
+	
+	front = fronts[ frontNo ];
+	
+	//////////////////  DEBUG triangles //////////////////////////////////
+	let stp = 0;
+	//////////////////////////////////////////////////////////////////////
+
+	// ------ triangulation cycle -------------
+	
+	while ( frontStock > 0 ) {
+		
+		if (  !unite && !split ) { // triangulation on the front
+			
+			smallAngles = [];
+			
+			for ( let i = 0; i < front.length; i ++ ) {
+				
+				if( front[ i ].ang === 0 ) calculateFrontAngle( i ); // is to be recalculated (angle was set to zero)
+				
+			}
+			
+			m = getMinimalAngleIndex( ); // front angle
+			makeNewTriangles( m );
+			
+			if ( front.length > 9 && smallAngles.length === 0 ) {
+				
+				checkDistancesToUnite( m );
+				checkDistancesToSplit( m );
+				
+			}
+			
+			if ( front.length === 3 ) {
+				
+				makeLastTriangle( ); // last triangle closes the front
+				chooseNextFront( ); // if aviable
+				
+			}
+			
+		} else { // unite the active front to another front or split the active front
+			
+			if ( unite ) {
+				
+				uniteFront(  m, iUnite, fUnite, jUnite );
+				trianglesAtUnionPoints( );
+				unite = false;
+				
+			} else if ( split ) {
+				
+				splitFront( iSplit, jSplit );
+				trianglesAtSplitPoints( );
+				split = false;
+				
+			}
+			
+		}
+		
+		/////////// DEBUG triangles ///////////////////////////////////////////////////////////////
+		// if ( stp > 100 ) break;	
+		///////////////////////////////////////////////////////////////////////////////////////////
+		
+	}
+	
+	// .....  detail functions .....
+
+	function makeFirstTriangle ( ) {
+	
+		 // needed because no bounds
+		 
+		switch ( g.surface ) {
+			
+			case 'sphere':
+			
+			fronts[ frontNo ] = [];
+			boundings[ frontNo ] = [];
+			
+			storeSpherePoint( 0, 0 ); // ( theta, phi )
+			storeSpherePoint( Math.PI / 2 / g.div4, -Math.PI / 6 );
+			storeSpherePoint( Math.PI / 2 / g.div4,  Math.PI / 6 );
+			
+			g.indices[ 0 ] = 0;
+			g.indices[ 1 ] = 1; 
+			g.indices[ 2 ] = 2;
+			
+			indIdx += 3;
+			
+			///////////////  DEBUG triangles  //////////////////////
+			// stp ++;
+			////////////////////////////////////////////////////////
+			
+			fronts[ frontNo ].push( { idx: 0, ang: 0 }, { idx: 1, ang: 0 }, { idx: 2, ang: 0 } );
+			
+			frontNo ++;
+			frontStock ++;
+			
+			break;
+			/*
+			case 'torus':
+			
+			break;
+			*/
+			
+		}
+		
+	}
+	
+	function storeSpherePoint( theta, phi ) {
+		
+		g.positions[ posIdx     ] = g.radius * Math.sin( theta ) * Math.cos( phi );
+		g.positions[ posIdx + 1 ] = g.radius * Math.cos( theta );
+		g.positions[ posIdx + 2 ] = -g.radius * Math.sin( theta ) * Math.sin( phi );
+		
+		posIdx += 3;
+		
+	}
+	
+	// triangulation functions
+	
+	function checkDistancesToUnite( m ) { // for new active front points
+		
+		let idxJ, xChk, yChk, zChk, ddUnite;
+		let ddUniteMin = Infinity;
+		unite = false;
+		
+		for ( let i = 0; i < insertFront.length; i ++ ) {
+			
+			getPoint( m + i );
+			
+			for ( let f = 0; f < fronts.length; f ++ ) { 
+				
+				if ( f !== frontNo ) {
+					
+					xChk = ( xp > boundings[ f ][ 0 ] - g.d ) && ( xp < boundings[ f ][ 3 ] + g.d );
+					yChk = ( yp > boundings[ f ][ 1 ] - g.d ) && ( yp < boundings[ f ][ 4 ] + g.d );
+					zChk = ( zp > boundings[ f ][ 2 ] - g.d ) && ( zp < boundings[ f ][ 5 ] + g.d );
+					
+					if (  xChk || yChk || zChk ) {
+						
+						for ( let j = 0; j < fronts[ f ].length; j ++ ) {
+							
+							idxJ = fronts[ f ][ j ].idx * 3;
+							
+							// Hint: here (2) is exceptionally point in other front!
+							x2 = g.positions[ idxJ ]; 
+							y2 = g.positions[ idxJ + 1 ];
+							z2 = g.positions[ idxJ + 2 ];
+							
+							ddUnite = squareLength ( x2 - xp, y2 - yp, z2 - zp );
+							
+							if ( ddUnite < dd && ddUnite < ddUniteMin ) {
+								
+								ddUniteMin = ddUnite; 
+								iUnite = i;
+								jUnite = j;
+								fUnite = f;
+								unite = true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+	
+	function uniteFront( m, i, f, j ) {
+		
+		let tmp = [];
+		
+		tmp[ 0 ] = front.slice( 0, m + i + 1 );
+		tmp[ 1 ] = fronts[ f ].slice( j , fronts[ f ].length );
+		tmp[ 2 ] = fronts[ f ].slice( 0 , j + 1 );
+		tmp[ 3 ] = front.slice( m + i, front.length );
+		
+		unionIdxA = m + i;
+		unionIdxB = m + i + 1 + fronts[ f ].length
+		
+		front = [];
+		
+		for ( let t = 0; t < 4; t ++ ) {
+			
+			for ( let k = 0; k < tmp[ t ].length ; k ++ ) {
+				
+				front.push( tmp[ t ][ k ] );
+				
+			}
+			
+		}
+		
+		fronts[ f ] = []; // empty united front
+		
+		frontStock -= 1; // front is eliminated
+		
+	}
+	
+	function trianglesAtUnionPoints( ) {
+		
+		nIns = 0; // count inserted points
+		
+		calculateFrontAngle( unionIdxA );
+		calculateFrontAngle( unionIdxA + 1 );
+		
+		if ( front[ unionIdxA ].ang < front[ unionIdxA + 1 ].ang ) {
+			
+			makeNewTriangles( unionIdxA );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxA + 1 + nIns );
+			makeNewTriangles( unionIdxA + 1 + nIns );
+			nIns += n - 1;
+			
+		} else {
+			
+			makeNewTriangles( unionIdxA + 1 );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxA );
+			makeNewTriangles( unionIdxA );
+			nIns += n - 1;
+		}
+		
+		calculateFrontAngle( unionIdxB + nIns );
+		calculateFrontAngle( unionIdxB + 1 + nIns );
+		
+		if ( front[ unionIdxB + nIns ].ang < front[ unionIdxB + 1 + nIns ].ang ) {
+			
+			makeNewTriangles( unionIdxB + nIns );
+			nIns += n - 1;
+			calculateFrontAngle( unionIdxB + 1 + nIns );
+			makeNewTriangles( unionIdxB + 1 + nIns );
+			
+		} else {
+			
+			makeNewTriangles( unionIdxB + 1 + nIns );
+			calculateFrontAngle( unionIdxB + nIns );
+			makeNewTriangles( unionIdxB + nIns );
+			
+		}
+		
+	}
+	
+	function checkDistancesToSplit( m ) { // for new active front points
+	
+		let mj, mjIdx, ddSplit;
+		let ddSplitMin = Infinity;
+		split = false;
+		
+		for ( let i = 0; i < front.length ; i ++ ) {
+			
+			for ( let j = 0; j < n; j ++ ) { // check n new points (insertFront)
+				
+				mj = m + j;
+				
+				// except new points themselves and neighbor points
+				if ( Math.abs( i - mj ) > 3 && Math.abs( i - mj ) < front.length - 3 ) {
+					
+					mjIdx = front[ mj ].idx * 3;
+					
+					// Hint: here (1) is exceptionally new point in the front!
+					x1 = g.positions[ mjIdx ]; 
+					y1 = g.positions[ mjIdx + 1 ];
+					z1 = g.positions[ mjIdx + 2 ];
+					
+					getPoint( i );
+					
+					ddSplit = squareLength ( x1 - xp, y1 - yp, z1 - zp );
+					
+					if ( ddSplit < dd && ddSplit < ddSplitMin ) {
+						
+						ddSplitMin = ddSplit;
+						iSplit = i;
+						jSplit = mj;
+						split = true;
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+	
+	function splitFront( iSplit, jSplit ) {
+		
+		let k;
+		
+		front[ iSplit ].ang = 0;
+		front[ jSplit ].ang = 0;
+		
+		if ( iSplit > jSplit )  { // swap
+			
+			k = jSplit;
+			jSplit = iSplit;
+			iSplit = k;
+			
+		} 
+		
+		splitIdx = iSplit;	// lower index
+		
+		partFront = [];
+		
+		// to duplicate
+		let frontI = front[ iSplit ];
+		let frontJ = front[ jSplit ];
+		
+		partFront = front.splice( iSplit + 1, jSplit - iSplit - 1 );
+		partFront.unshift( frontI );
+		partFront.push( frontJ );
+		
+		fronts.push( partFront );
+		
+		partFrontBounds( );
+		
+		frontStock += 1; // new front created
+		
+	}
+	
+	function trianglesAtSplitPoints( ) {
+		
+		nIns = 0; // count inserted points
+		
+		let idx0 = splitIdx; // splitIdx is the lower index
+		let idx1 = splitIdx + 1;
+		
+		calculateFrontAngle( idx0 );
+		calculateFrontAngle( idx1 );
+		
+		if ( front[ idx1 ].ang < front[ idx0 ].ang ){
+			
+			makeNewTriangles( idx1 );
+			nIns += n - 1;
+			calculateFrontAngle( idx0 );
+			makeNewTriangles( idx0 );
+			
+		} else {
+			
+			makeNewTriangles( idx0 );
+			nIns += n - 1;
+			calculateFrontAngle( idx1 + nIns );
+			makeNewTriangles( idx1 + nIns );
+			
+		}
+		
+	}
+	
+	function getMinimalAngleIndex( ) {
+		
+		let angle = Infinity;
+		let m;
+		
+		for ( let i = 0; i < front.length; i ++ ) {
+			
+			if( front[ i ].ang < angle  ) {
+				
+				angle = front[ i ].ang ;
+				m = i;
+				
+			}
+			
+		}
+		
+		return m;
+		
+	}
+	
+	function makeNewTriangles( m ) {
+		
+		//	m:  minimal angle (index)
+		
+		insertFront = []; // new front points
+		
+		nT = Math.floor( 3 * front[ m ].ang / Math.PI ) + 1; // number of new triangles
+		
+		dAng = front[ m ].ang / nT;
+		
+		getSystemAtPoint( m );
+		getNextPoint( m );
+		
+		d1 = length( x1 - xp, y1 - yp, z1 - zp );
+		d2 = length( x2 - xp, y2 - yp, z2 - zp );
+		d12 = length( x2 - x1, y2 - y1, z2 - z1 );
+		
+		// correction of dAng, nT in extreme cases
+		
+		if ( dAng < 0.8 && nT > 1 ) {
+			
+			nT --;
+			dAng = front[ m ].ang / nT;
+			
+		}
+		
+		if ( dAng > 0.8 && nT === 1 && d12 > 1.25 * g.d ) {
+			
+			nT = 2; 
+			dAng = front[ m ].ang / nT;
+			
+		}
+		
+		if ( d1 * d1 < 0.2 * dd ||  d2 * d2 < 0.2 * dd  ) {
+			
+			nT = 1;
+			
+		}
+		
+		n = nT - 1;  // n number of new points
+			
+		if ( n === 0 ) { // one triangle
+			
+			g.indices[ indIdx     ] = front[ m ].idx;
+			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx; 
+			g.indices[ indIdx + 2 ] = front[ nextFront( m ) ].idx;
+			
+			indIdx += 3;
+			
+			///////////////  DEBUG triangles  //////////////////////
+		 	 stp ++;
+			////////////////////////////////////////////////////////
+			
+			front[ prevFront( m ) ].ang = 0;
+			front[ nextFront( m ) ].ang = 0;
+			
+			front.splice( m, 1 ); // delete point with index m from the front
+			
+		} else { // more then one triangle
+			
+			xc = xp;
+			yc = yp;
+			zc = zp;
+			
+			for ( let i = 0,  phi = dAng; i < n; i ++, phi += dAng ) {
+				
+				xp = xc + Math.cos( phi ) * g.d * xt1 + Math.sin( phi ) * g.d * xt2;
+				yp = yc + Math.cos( phi ) * g.d * yt1 + Math.sin( phi ) * g.d * yt2;
+				zp = zc + Math.cos( phi ) * g.d * zt1 + Math.sin( phi ) * g.d * zt2;
+				
+				surfacePoint( );
+				
+				insertFront.push( { idx: posIdx / 3, ang: 0 } );
+				
+				posIdx += 3;
+				
+			}	
+			
+			g.indices[ indIdx     ] = front[ m ].idx;
+			g.indices[ indIdx + 1 ] = front[ prevFront( m ) ].idx 
+			g.indices[ indIdx + 2 ] = insertFront[ 0 ].idx;
+			
+			indIdx += 3;
+			
+			///////////////  DEBUG  triangles  /////////////////////
+			stp ++;
+			////////////////////////////////////////////////////////
+			
+			front[ prevFront( m ) ].ang = 0;
+			
+			for ( let i = 0; i < n - 1; i ++ ) {
+				
+				g.indices[ indIdx     ] = front[ m ].idx;
+				g.indices[ indIdx + 1 ] = insertFront[ i ].idx;
+				g.indices[ indIdx + 2 ] = insertFront[ i + 1 ].idx;
+				
+				indIdx += 3;
+				
+				///////////////  DEBUG triangles  //////////////////////
+				 stp ++;
+				////////////////////////////////////////////////////////
+				
+			}
+			
+			g.indices[ indIdx     ] = front[ m ].idx;
+			g.indices[ indIdx + 1 ] = insertFront[ n - 1 ].idx;
+			g.indices[ indIdx + 2 ] = front[ nextFront( m ) ].idx;
+			
+			front[ nextFront( m ) ].ang = 0;
+			
+			indIdx += 3;
+			
+			///////////////  DEBUG triangles  //////////////////////
+			stp ++;
+			////////////////////////////////////////////////////////
+			
+			replaceFront( m, insertFront ); // replaces front[ m ] with new points
+			
+		}
+		
+	}
+	
+	function surfacePoint( ) {
+		
+		switch ( g.surface ) {
+			
+			case 'polygon':
+			case 'outline':
+			case 'rectangle':
+			case 'circle':
+			g.positions[ posIdx     ] = xp;
+			g.positions[ posIdx + 1 ] = 0;
+			g.positions[ posIdx + 2 ] = zp;
+			break;
+			
+			case 'sphere':
+			len = length( xp, yp, zp );
+			g.positions[ posIdx     ] = g.radius * xp / len;
+			g.positions[ posIdx + 1 ] = g.radius * yp / len;
+			g.positions[ posIdx + 2 ] = g.radius * zp / len;
+			break;
+			
+			case 'planecap':
+			g.positions[ posIdx     ] = xp;
+			g.positions[ posIdx + 1 ] = yp;
+			g.positions[ posIdx + 2 ] = zp;
+			break;
+			
+			case 'cylinder':
+			len = lenXZ( xp, zp );
+			g.positions[ posIdx     ] = g.radius * xp / len;
+			g.positions[ posIdx + 1 ] = yp;
+			g.positions[ posIdx + 2 ] = g.radius * zp / len;
+			break;
+			
+		}
+		
+	}
+	
+	function makeLastTriangle( ) {
+		
+		g.indices[ indIdx     ] = front[ 2 ].idx;
+		g.indices[ indIdx + 1 ] = front[ 1 ].idx 
+		g.indices[ indIdx + 2 ] = front[ 0 ].idx;
+		
+		indIdx += 3;
+		
+		///////////////  DEBUG triangles  //////////////////////
+		stp ++;
+		////////////////////////////////////////////////////////
+		
+		front = [];
+		
+		fronts[ frontNo ] = [];
+		
+		frontStock -= 1; // close front
+		
+	}
+	
+	function chooseNextFront( ) {
+		
+		if ( frontStock > 0 ) {
+			
+			for ( let i = 0; i < fronts.length; i ++ ) {
+				
+				if ( fronts[ i ].length > 0 ) {
+					
+					frontNo = i;
+					break;
+					
+				}
+				
+			}
+			
+			front = fronts[ frontNo ];
+			
+			smallAngles = [];
+			
+			for ( let i = 0; i < front.length; i ++ ) {
+				
+				calculateFrontAngle( i ); // recalculate angles of next front
+				
+			}
+			
+		}
+		
+	}
+	
+	function atan2PI( x, y ) {
+		
+		let angle = Math.atan2( y, x );
+		
+		if ( angle < 0 ) angle = angle + Math.PI * 2;
+		
+		return angle;
+		
+	}
+	
+	function coordTangentialSystem( ) {
+		
+		let det = determinant( xt1, yt1, zt1, xt2, yt2, zt2, xn, yn, zn );
+		
+		xs1 = determinant( x1 - xp, y1 - yp, z1 - zp, xt2, yt2, zt2, xn, yn, zn ) / det;
+		ys1 = determinant( xt1, yt1, zt1, x1 - xp, y1 - yp, z1 - zp, xn, yn, zn ) / det;
+		//zs1  not needed
+		
+		xs2 = determinant( x2 - xp, y2 - yp, z2 - zp, xt2, yt2, zt2, xn, yn, zn ) / det;
+		ys2 = determinant( xt1, yt1, zt1, x2 - xp, y2 - yp, z2 - zp, xn, yn, zn ) / det;
+		//zs2 not needed
+		
+	}
+	
+	function calculateFrontAngle( i ) {
+		
+		let ang1, ang2;
+		
+		getSystemAtPoint( i );
+		getNextPoint( i );
+ 		
+		coordTangentialSystem( );
+	 	
+		ang1 = atan2PI( xs1, ys1 );
+		ang2 = atan2PI( xs2, ys2 );	
+		
+		if ( ang2 < ang1 )  ang2 += Math.PI * 2;
+		
+		front[ i ].ang  = ang2 - ang1;
+		
+		if ( front[ i ].ang < 1.5 ) smallAngles.push( i );
+		
+	}
+	
+	function partFrontBounds( ) {
+		
+		let idx;
+		
+		partBounds = [];
+		
+		xmin = ymin = zmin = Infinity;
+		xmax = ymax = zmax = -Infinity;
+		
+		for( let i = 0; i < partFront.length; i ++ ) {
+			
+			idx = partFront[ i ].idx * 3;
+			minMaxValues( g.positions[ idx ], g.positions[ idx + 1 ], g.positions[ idx + 2 ] );
+			
+		}
+		
+		partBounds.push( xmin, ymin, zmin, xmax, ymax, zmax );
+		
+		boundings.push( partBounds );
+		
+	}
+	
+	function replaceFront( m, fNew ) {
+		
+		let rear = front.splice( m, front.length - m );
+		
+		for ( let i = 0; i < fNew.length; i ++ ) {
+			
+			front.push( fNew[ i ] ); // new front points
+			
+		}
+		
+		for ( let i = 1; i < rear.length; i ++ ) { // i = 1: without old front point m 
+			
+			front.push( rear[ i ] );
+			
+		}
+		
+	}
+	
+	function getSystemAtPoint( i ) {
+		
+		getPrevPoint( i );
+		getPoint( i );
+		
+		switch ( g.surface ) {
+			
+			case 'polygon':
+			case 'outline':
+			case 'rectangle':
+			case 'circle':
+			
+			xn = 0;
+			yn = 1;
+			zn = 0;
+			
+			// first tangent
+			
+			xt1 = x1 - xp;
+			yt1 = 0;
+			zt1 = z1 - zp;
+			
+			len = length( xt1, yt1, zt1 ); // to normalize
+			
+			xt1 = xt1 / len;
+			yt1 = 0;
+			zt1 = zt1 / len;
+			
+			// cross, ( xn, zn : 0, yn: 1 ) second tangent
+			xt2 = zt1;
+			yt2 = 0;
+			zt2 = -xt1;
+			
+			break;
+			
+			case 'sphere':
+			
+			len = length( xp, yp, zp ); // to normalize
+			
+			xn = xp / len;
+			yn = yp / len
+			zn = zp / len;
+			
+			// centerAngle = Math.acos( Math.abs( x1 * xp + y1 * yp + z1 * zp ) / ( g.radius * g.radius ) );
+			h = Math.abs( x1 * xp + y1 * yp + z1 * zp ) / g.radius; // distance: sphere center to cutting circle
+			
+			// center cutting circle (refers to previous point)
+			xc = h / g.radius * xp; 
+			yc = h / g.radius * yp;
+			zc = h / g.radius * zp;
+			
+			// first tangent
+			xt1 = x1 - xc;
+			yt1 = y1 - yc;
+			zt1 = z1 - zc;
+			
+			len = length( xt1, yt1, zt1 ); // to normalize
+			
+			xt1 = xt1 / len;
+			yt1 = yt1 / len;
+			zt1 = zt1 / len;
+			
+			// cross, second tangent
+			
+			xt2 = yn * zt1 - zn * yt1;
+			yt2 = zn * xt1 - xn * zt1;
+			zt2 = xn * yt1 - yn * xt1;
+			 
+			break;
+			
+			case 'planecap':
+			
+			xn = -g.sintilt;
+			yn = g.costilt;
+			zn = 0;
+			
+			// first tangent
+			
+			xt1 = x1 - xp;
+			yt1 = y1 - yp;
+			zt1 = z1 - zp;
+			
+			len = length( xt1, yt1, zt1 ); // to normalize
+			
+			xt1 = xt1 / len;
+			yt1 = yt1 / len;
+			zt1 = zt1 / len;
+			
+			// cross, second tangent
+			
+			xt2 = yn * zt1 - zn * yt1;
+			yt2 = zn * xt1 - xn * zt1;
+			zt2 = xn * yt1 - yn * xt1;
+			
+			break;
+			
+			case 'cylinder':
+			
+			len = lenXZ( xp, zp );
+			
+			xn = xp / len;
+			yn = 0;
+			zn = zp / len;
+			
+			// cross,  yn=0
+			
+			xt2 = -zn * ( y1 - yp );
+			yt2 = zn * ( x1 - xp ) - xn * ( z1 - zp );
+			zt2 = xn * ( y1 - yp );
+			
+			len = length( xt2, yt2, zt2 ); // to normalize
+			
+			xt2 = xt2 / len;
+			yt2 = yt2 / len;
+			zt2 = zt2 / len;
+			
+			// cross,  yn=0
+			
+			xt1 = yt2 * zn;
+			yt1 = zt2 * xn - xt2 * zn;
+			zt1 = -yt2 * xn;
+			
+			break;
+			
+		}
+		
+	}
+	
+	function getPrevPoint( i ) {
+		
+		frontPosIdx = front[ prevFront( i ) ].idx * 3;
+		
+		x1 = g.positions[ frontPosIdx ]; 
+		y1 = g.positions[ frontPosIdx + 1 ];
+		z1 = g.positions[ frontPosIdx + 2 ];
+		
+	}
+	
+	function getPoint( i ) {
+		
+		frontPosIdx = front[ i ].idx * 3;
+		
+		xp = g.positions[ frontPosIdx ];
+		yp = g.positions[ frontPosIdx + 1 ];
+		zp = g.positions[ frontPosIdx + 2 ];
+		
+	}
+	
+	function getNextPoint( i ) {
+		
+		frontPosIdx = front[ nextFront( i ) ].idx * 3;
+		
+		x2 = g.positions[ frontPosIdx ];
+		y2 = g.positions[ frontPosIdx + 1 ];
+		z2 = g.positions[ frontPosIdx + 2 ];
+		
+	}
+	
+	function minMaxValues( x, y, z ) {
+		 
+		if ( x < xmin ) xmin = x;
+		if ( y < ymin ) ymin = y;
+		if ( z < zmin ) zmin = z;
+		
+		if ( x > xmax ) xmax = x;
+		if ( y > ymax ) ymax = y;
+		if ( z > zmax ) zmax = z;
+		
+	}
+	
+	// --- boundings and holes ---
+	
+	function defineBoundsAndHoles( ) {
+		
+		// define outline front for polygon
+		
+		if ( g.surface === 'polygon' ) {
+			
+			for ( let i = 0, psi = 0; i < g.polygonN; i ++, psi += Math.PI * 2 / g.polygonN ) {
+				
+				outline.push( g.radius * Math.cos( psi ), g.radius * Math.sin( psi ) );
+				
+			}
+			
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
+		
+		// define front for surface: 'outline'
+		
+		if ( g.surface === 'outline' ) {
+			
+			outline = g.points;
+			
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
+		
+		// define outline front for rectangle
+		
+		if ( g.surface === 'rectangle' ) {
+			
+			outline = [ g.divW * g.d / 2, g.divH * g.d / 2, -g.divW * g.d / 2, g.divH * g.d / 2, -g.divW * g.d / 2, -g.divH * g.d / 2, g.divW * g.d / 2, -g.divH * g.d / 2 ];
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
+		
+		// define outline front for circle
+		
+		if ( g.surface === 'circle' ) {
+		
+			initFront( );
+			
+			for ( let i = 0, psi = 0; i < g.detail; i ++, psi += Math.PI * 2 / g.detail ) {
+				
+				x = g.radius * Math.cos( psi );
+				y = 0;	
+				z = g.radius * Math.sin( psi );
+				
+				g.positions[ posIdx     ] = x;
+				g.positions[ posIdx + 1 ] = y;
+				g.positions[ posIdx + 2 ] = z;
+				
+				fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+				
+				minMaxValues( x, y, z );
+				
+				posIdx += 3;
+				
+			}
+			
+			boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+			
+			frontNo ++;
+			frontStock ++;
+			
+		}
+		
+		// define holes fronts for polygon, outline, rectangle, circle
+		
+		if ( g.surface === 'polygon' || g.surface === 'outline' ||  g.surface === 'rectangle' || g.surface === 'circle') {
+			
+			for ( let i = 0; i < g.holes.length; i ++ ) {
+				
+				makePointsFront( i ); // points: [ x, z, ... ]
+				
+			}
+			
+		}
+		
+		// define holes fronts for sphere
+		
+		if ( g.surface === 'sphere' ) {
+			
+			g.circles = []; // array of arrays [ div4Adp,  xc, yc, zc, rAdp ], values for external use
+			
+			for ( let i = 0; i < g.holes.length; i ++ ) {
+				
+				if ( g.holes[ i ][ 0 ] === 'circle' ) {
+					
+					sphere_makeCircularHole( i );  // [ 'circle', div4Adp, theta, phi ]
+					
+				} else if ( g.holes[ i ][ 0 ] === 'cylinder' ) {
+					
+					sphere_makeCylinderHole( i ); // [ 'cylinder', div4Adp, theta, phi, exc, unit, <optional: side> ] 
+					
+				} else {
+					
+					makePointsFront( i ); // points: [ theta, phi, ... ]
+					
+				}
+				
+			}
+			
+		}
+		
+		// define outline front for tilt planecap for cylinder 
+		
+		if ( g.surface === 'planecap' ) {
+			
+			tilt = g.tilt;
+			sign =  -1;
+			yOff = 0;  //don't change, place the planecap mesh instead
+			phi = 0; //	don't change, rotate the planecap mesh instead
+			
+			cylinder_makePlaneBound( );
+			
+		}
+		
+		// define fronts for cylinder boundaries y-axis and holes
+		
+		if ( g.surface === 'cylinder' ) {
+	 		
+			// boundaries
+			yOff = g.btm;
+			g.div4Adp = g.div4Btm;
+			phi = g.phiBtm;
+			exc = g.geoBtm === 'cylinder' ? g.excBtm : -g.excBtm;
+			unit = g.excUnitBtm;
+			tilt = g.tiltBtm;
+			reverseOrder = false;
+			sign = g.geoBtm === 'plane' ? -1 : 1; // 1 for 'sphere', 'cylinder'
+			
+			if ( g.geoBtm === 'plane' ) cylinder_makePlaneBound( );
+			if ( g.geoBtm === 'sphere' ) cylinder_makeSphereBound( );
+			if ( g.geoBtm === 'cylinder' ) cylinder_makeCylinderBound( );
+			
+			
+			yOff = g.top;
+			g.div4Adp = g.div4Top;
+			phi = g.phiTop;
+			exc = g.geoTop === 'cylinder' ? -g.excTop : g.excTop;
+			unit = g.excUnitTop;
+			tilt = g.tiltTop;
+			reverseOrder = true;
+			sign =  g.geoTop === 'cylinder' ? -1 : 1; // 1 for 'plane', 'sphere'
+			
+			if ( g.geoTop === 'plane' ) cylinder_makePlaneBound( );
+			if ( g.geoTop === 'sphere' ) cylinder_makeSphereBound( );
+			if ( g.geoTop === 'cylinder' ) cylinder_makeCylinderBound( );
+			
+			// holes
+			
+			for ( let i = 0; i < g.holes.length; i ++ ) {
+				
+				if ( g.holes[ i ][ 0 ] === 'sphere' ) {
+					
+					cylinder_makeSphereHole( i ); // [ 'sphere', div4Adp, y, phi, exc, unit ]
+					
+				} else if ( g.holes[ i ][ 0 ] === 'cylinder' ) {
+					
+					cylinder_makeCylinderHole( i ); // [ 'cylinder', div4Adap, y, phi, exc, unit, tilt, <optional: side> ]
+					
+				} else {
+					
+					makePointsFront( i ); // points: [ y, phi, ... ]
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+	
+	function initFront( ) {
+		
+		xmin = ymin = zmin = Infinity;
+		xmax = ymax = zmax = -Infinity;
+		
+		fronts[ frontNo ] = [];
+		boundings[ frontNo ] = [];
+		
+	}
+	
+	function posReverse( ) {
+ 		
+		for ( let i = posLen - 3; i  > -1; i -= 3 ){
+			
+			pos.push( pos[ i ], pos[ i + 1 ], pos[ i + 2 ] ); // add reverse order
+			
+		}
+		
+		pos.splice( 0, posLen ); // remove beginning of field
+		
+	}
+	
+	function makeFrontPos( xyzCalculation ) {
+		
+		psi = psiStart;
+		dpsi = Math.PI * 2 / Math.max( g.detail, g.detailAdp ) / 16; 
+		sqlen1 = Infinity; // initial
+		
+		xyzCalculation( ); // start point
+		
+		pos.push( x, y, z );
+		
+		// notice start point
+		x0 = x;
+		y0 = y;
+		z0 = z;
+ 		
+		psi = psiEnd;
+		xyzCalculation( );
+		psi = psiStart; // initial again
+		
+		// notice endpoint to check finish
+		x1 = x; 
+		y1 = y;
+		z1 = z;
+	 	
+		while ( sign > 0 ? psi < psiEnd && ( sqlen1 > 5.76 * dd || psi < ( psiStart + psiEnd ) / 2 ) : psi > psiEnd && ( sqlen1 > 5.76 * dd || psi > ( psiStart + psiEnd ) / 2 ) ) {
+			
+			psi0 = psi;
+			sqlen0 = 0;
+			
+			while ( sqlen0 < 0.81 * dd ) {
+				
+				psi += sign * dpsi;
+				
+				xyzCalculation( );
+				
+				dx = x - x0;
+				dy = y - y0;
+				dz = z - z0;
+				
+				sqlen0 = squareLength( dx, dy, dz );
+				
+			}
+			
+			pos.push( x, y, z );
+			
+			if ( slope === 'dx' ) {
+			
+				dyzdx = Math.abs( Math.sqrt( dy * dy + dz * dz ) / dx );
+				dyzdx = dyzdx > 1 ? 1 : dyzdx;
+				dpsi = Math.abs( psi - psi0 ) * dyzdx / 16;
+				
+			} else { // 'dy'
+				
+				dxzdy = Math.abs( Math.sqrt( dx * dx + dz * dz ) / dy );
+				dxzdy = dxzdy > 1 ? 1 : dxzdy;
+				dpsi = Math.abs( psi - psi0 ) * dxzdy / 16;
+				
+			}
+			
+			x0 = x; 
+			y0 = y; 
+			z0 = z;
+			
+			dx = x - x1;
+			dy = y - y1; 
+			dz = z - z1;
+			
+			sqlen1 = squareLength( dx, dy, dz );
+			
+		}
+		
+		// possibly a intermediate point
+		
+		if( sqlen1 > 1.44 * dd ) {
+			
+			psi += ( psiEnd - psi ) / 2 ;
+			xyzCalculation( );
+			pos.push( x, y, z );
+			
+		}
+		
+		if( endPoint ) {
+			
+		 	pos.push( x1, y1, z1 );
+ 			
+		}
+		
+	}
+	
+	function sphere_writeCylFront( i ) {
+		
+		xa = pos[ i     ]; 
+		ya = pos[ i + 1 ];
+		za = pos[ i + 2 ];
+		
+		// rotate around z axis 
+		xb = xa * Math.cos( theta ) + ya * Math.sin( theta ); 
+		yb = -xa * Math.sin( theta ) + ya * Math.cos( theta );
+		
+		// rotate around y axis 
+		x = xb * Math.cos( phi ) + za * Math.sin( phi );
+		z = -xb * Math.sin( phi ) + za * Math.cos( phi );
+		
+		y = yb; // for storing and checking bounds
+		
+		g.positions[ posIdx     ] = x;
+		g.positions[ posIdx + 1 ] = y;
+		g.positions[ posIdx + 2 ] = z;
+		
+		fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+		
+		minMaxValues( x, y, z );
+		
+		posIdx += 3;
+		
+	}
+	
+	function cylinder_writeFrontBuffer( ) {
+		
+		initFront( );
+		
+		for ( let i = 0; i < pos.length; i += 3 ) {
+			
+			xa = pos[ i     ]; 
+			ya = pos[ i + 1 ];
+			za = pos[ i + 2 ];
+	 		
+			// rotate around y axis
+			x = xa * Math.cos( phi ) - za * Math.sin( phi );
+			z = xa * Math.sin( phi ) + za * Math.cos( phi );
+			
+			y = ya + yOff;
+			
+			g.positions[ posIdx     ] = x;
+			g.positions[ posIdx + 1 ] = y;
+			g.positions[ posIdx + 2 ] = z;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			minMaxValues( x, y, z );
+			
+			posIdx += 3;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function sphere_makeCircularHole( i ) {
+		
+		g.div4Adp = g.holes[ i ][ 1 ];
+		theta = g.holes[ i ][ 2 ];
+		phi = g.holes[ i ][ 3 ];
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; // radius cutting circle
+		h = Math.sqrt( g.radius * g.radius - g.rAdp * g.rAdp ); // distance: sphere center to cutting circle
+		
+		xp = g.radius *  Math.sin( theta ) * Math.cos( phi );
+		yp = g.radius *  Math.cos( theta );
+		zp = -g.radius * -Math.sin( theta ) * Math.sin( phi );
+		
+		xc = h / g.radius * xp;
+		yc = h / g.radius * yp;
+		zc = h / g.radius * zp;
+		
+		g.circles.push( [ g.div4Adp, xc, yc, zc, g.rAdp ] ); // values for external use
+		
+		initFront( );
+		
+		ya = h;
+		
+		for ( let i = 0, psi = 0; i < g.detailAdp; i ++, psi += 2 * Math.PI / g.detailAdp ) {
+			
+			//  cutting circle on top
+			xa = g.rAdp * Math.cos( psi );
+			za = g.rAdp * Math.sin( psi );
+			 
+			// rotate around z axis 
+			xb = xa * Math.cos( theta ) - ya * Math.sin( theta );
+			yb = xa * Math.sin( theta ) + ya * Math.cos( theta );
+			
+			// rotate around y axis 
+			x = -xb * Math.cos( phi ) + za * Math.sin( phi ); 
+			z = xb * Math.sin( phi ) + za * Math.cos( phi );
+			
+			y = yb; // for storing and checking bounds
+			
+			g.positions[ posIdx     ] = x;
+			g.positions[ posIdx + 1 ] = y;
+			g.positions[ posIdx + 2 ] = z;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			minMaxValues( x, y, z );
+			
+			posIdx += 3;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function sphere_makeCylinderHole( i ) {
+	
+		g.div4Adp = g.holes[ i ][ 1 ];
+		theta = g.holes[ i ][ 2 ];
+		phi = g.holes[ i ][ 3 ];
+		
+		unit = g.holes[ i ][ 5 ];
+		side = g.holes[ i ][ 6 ] !== undefined ? g.holes[ i ][ 6 ] : '+'; // side: '+' default, '-', '+-' or '-+'
+		
+		switch ( unit ) {
+			case '%':
+				exc = g.holes[ i ][ 4 ] / 100 * g.radius; // percent value can be larger than 100
+				break;	 
+			case'd':
+				exc = g.holes[ i ][ 4 ] * g.d;
+				break;
+			case'v':
+				exc = g.holes[ i ][ 4 ];
+				break;
+			default: // like 'v' value
+				exc = g.holes[ i ][ 4 ];
+			 
+		}
+		
+		exc = exc === 0 ? 0.000000001 : exc;	// to prevent division by zero
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; //  adapted cylinder radius
+		
+		if ( g.radius + g.rAdp - exc > 0 ) { // cut
+			
+			// partial front: cutline PI <= psi <= 2*PI
+			// y = sqrt( g.radius * g.radius - g.rAdp * g.rAdp - exc * exc - 2 * g.rAdp * exc * cos( psi ) )
+			
+			rex = g.radius * g.radius - g.rAdp * g.rAdp - exc * exc;
+			
+			sign = 1;
+			psiStart = Math.PI;
+			
+			endPoint = true;
+			slope = 'dy';
+ 			pos = [];
+			
+			if ( g.rAdp + exc <= g.radius ) { // two separate holes
+				
+				psiEnd = Math.PI * 2;
+				connected = false;
+				
+			} else { // a connected hole 
+				
+				psiEnd = psiStart + Math.acos( rex / ( -2 * g.rAdp * exc ) );
+				connected = true;
+				
+			}
+			
+			makeFrontPos( sphere_xyzCylinderHole );
+			
+			posLen = pos.length;
+			
+			// generate complete front
+			
+			if ( connected ) {
+				
+				for ( let i = posLen - 6; i > -1; i -= 3 ) {
+					
+					pos.push( pos[ i ], -pos[ i + 1 ], pos[ i + 2 ] );
+					
+				}
+				
+				posLen = pos.length;
+				
+				for ( let i = 3 ; i < posLen * 2 - 3 ; i += 6 ) {
+					
+					pos.unshift( pos[ i ], pos[ i + 1 ], -pos[ i + 2 ] );
+					
+				}
+				
+			} else {
+				
+				for ( let i = 3 ; i < posLen * 2 - 9; i += 6 ) {
+					
+					pos.unshift( pos[ i ], pos[ i + 1 ], -pos[ i + 2 ] );
+					
+				}
+				
+			}
+			
+			// write front buffer array
+ 			
+			if ( connected || ( !connected && ( side === '+' || side === '+-' || side === '-+' ) ) ) {
+				
+				initFront( );
+				
+				for ( let i = pos.length - 3; i > -1; i -= 3 ) {
+					
+					sphere_writeCylFront( i );
+					
+				}
+				
+				boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+				
+				frontNo ++;
+				frontStock ++;
+				
+			}
+ 			
+			if ( !connected && ( side === '-' || side === '+-' || side === '-+' )  ) {
+				
+				initFront( );
+				
+				for ( let i = 0; i < pos.length; i += 3 ) pos[ i + 1 ] = -pos[ i + 1 ]; // '-' mirror
+				
+				for ( let i = 0; i < pos.length; i += 3 ) {
+					
+					sphere_writeCylFront( i );
+					
+				}
+				
+				boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+				
+				frontNo ++;
+				frontStock ++;
+				
+			}
+			
+		}
+		
+	}
+	
+	function sphere_xyzCylinderHole( ) {
+		
+		dsc = rex - 2 * g.rAdp * exc * Math.cos( psi );
+		dsc = dsc > 0 ? dsc : 0; // to prevent negativ value
+		
+		x = g.rAdp * Math.cos( psi ) + exc;
+		y = Math.sqrt( dsc );
+		z = g.rAdp * Math.sin( psi );
+		
+	}
+	
+	function cylinder_makePlaneBound( ) {
+		
+		tantilt = Math.tan( tilt ); // NOTE! tilt +PI/2..-PI/2 also for the calculation
+		g.detailAdp = g.detail; // identical division
+		
+		// sign is set above
+		psiStart = sign < 0 ? Math.PI * 2 : 0;
+		psiEnd = sign < 0 ? 0 : Math.PI * 2;
+		endPoint = false;
+		slope = 'dy';
+		pos = [];
+		
+		makeFrontPos( cylinder_xyzPlaneBound );
+		
+		posLen = pos.length;
+		
+		if ( sign < 0 ) posReverse( );
+		
+		cylinder_writeFrontBuffer( );
+		
+	}
+	
+	function cylinder_xyzPlaneBound( ) {
+		
+		x = g.radius * Math.cos( psi );
+		y = g.radius * Math.cos ( psi ) * tantilt;
+		z = g.radius * Math.sin( -sign * psi );
+		
+	}
+	
+	function cylinder_makeSphereBound( ) {
+		
+		if ( unit === '%' ) exc = exc / 100 * g.radius; // percent value can be larger than 100
+		if ( unit === 'd' ) exc = exc * g.d;
+		
+		// partial front: cutline PI <= psi <= 2*PI
+		// y = sqrt( g.rAdp * g.rAdp - g.radius * g.radius - exc * exc - 2 * g.radius * exc * cos( psi ) )
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; // adapted sphere radius
+		rex = g.rAdp * g.rAdp - g.radius * g.radius - exc * exc;
+		
+		// sign, reverseOrder are set above
+		psiStart = Math.PI;
+		psiEnd = Math.PI * 2;
+		endPoint = true;
+		slope = 'dy';
+		pos = [];
+		
+		makeFrontPos( cylinder_xyzSphereBound );
+		
+		posLen = pos.length;
+		
+		// generate complete front
+		
+		for ( let i = 3 ; i < posLen * 2 - 9; i += 6 ){
+			
+			pos.unshift( pos[ i ], pos[ i + 1 ], -pos[ i + 2 ] ); // add mirrored z value ( related psi 0..PI )
+			
+		}
+		
+		posLen = pos.length; // double pos.length!
+		
+		if ( reverseOrder ) {
+			
+			for ( let i = 1; i < posLen; i += 3 ){
+				
+				pos[ i ] = -pos[ i ];
+				
+			}
+			
+			posReverse( );
+			
+		}
+		
+		cylinder_writeFrontBuffer( ); 
+		
+	}
+	
+	function cylinder_xyzSphereBound( ){
+		
+		dsc = rex - 2 * g.radius * exc * Math.cos( psi );
+		dsc = dsc > 0 ? dsc : 0; // to prevent negativ value
+		
+		x = g.radius * Math.cos( psi );
+		y = Math.sqrt( dsc ) - g.rAdp;
+		z = g.radius * Math.sin( psi );
+		
+	}
+	
+	function cylinder_makeCylinderBound( ) {
+		
+		if ( unit === '%' ) exc = exc / 100 * g.radius; // percent value can be larger than 100
+		if ( unit === 'd' ) exc = exc * g.d;
+		
+		tilt = Math.PI / 2 - tilt; // NOTE! +PI/2..-PI/2 to 0..PI for calculation
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; // adapted cylinder radius
+		
+		sintilt = Math.sin( tilt );
+		sintilt = sintilt === 0 ? 0.000000001 : sintilt; // to prevent division by zero
+		costilt = Math.cos( tilt );
+		
+		// sign is set above
+		
+		psiStart = -sign * Math.PI;
+		psiEnd = sign * Math.PI;
+		
+		endPoint = false;
+		slope = 'dx';
+		
+		pos = [];
+	 	
+		r0 = g.radius;
+		r1 = g.rAdp;
+		
+		makeFrontPos( cylinder_xyzCylinderBoundOrHole );
+		
+		// following code like cylinder_writeFrontBuffer( ) with extra rotations
+		
+		posLen = pos.length;
+		
+		posReverse( );
+		
+		initFront( );
+		
+		for ( let i = 0; i < pos.length; i += 3 ) {
+			
+			xa = pos[ i ];
+			ya = pos[ i + 1 ];
+			za = pos[ i + 2 ];
+			
+			// rotate around z axis ( x to y direction )
+			xb = xa * costilt - ya * sintilt;
+			yb = xa * sintilt + ya * costilt;
+			
+			za = za + exc;
+			yb = yb - sign * g.rAdp / sintilt;
+			
+			// rotate around y axis
+			x = xb * Math.cos( phi ) - za * Math.sin( phi );
+			z = xb * Math.sin( phi ) + za * Math.cos( phi );
+			
+			y = yb + yOff;
+			
+			g.positions[ posIdx     ] = x;
+			g.positions[ posIdx + 1 ] = y;
+			g.positions[ posIdx + 2 ] = z;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			minMaxValues( x, y, z );
+			
+			posIdx += 3;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+		
+		frontNo ++;
+		frontStock ++;
+		
+	}
+	
+	function cylinder_makeSphereHole( i ) {
+		
+		g.div4Adp = g.holes[ i ][ 1 ];
+		yOff = g.holes[ i ][ 2 ];
+		phi = -( Math.PI + g.holes[ i ][ 3 ] );	
+		
+		unit = g.holes[ i ][ 5 ];
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; // adapted sphere radius 
+		
+		switch ( unit ) {
+			case '%':
+				exc = g.holes[ i ][ 4 ] / 100 * g.radius;  // percent value can be larger than 100
+				break;
+			case'd':
+				exc = g.holes[ i ][ 4 ] * g.d;
+				break;
+			case'v':
+				exc = g.holes[ i ][ 4 ];
+				break;
+				
+			default: // like 'v' value
+				exc = g.holes[ i ][ 4 ];
+				
+		}
+		
+		exc = exc === 0 ? 0.0000000000001 : exc; // to prevent division by zero ( psiEnd )
+		
+		if ( g.radius + g.rAdp - exc > 0 ) { // cut
+			
+			// partial front:
+			// y = sqrt( g.rAdp * g.rAdp - g.radius * g.radius - exc * exc - 2 * g.radius * exc * cos( psi ) )
+			
+			rex = g.rAdp * g.rAdp - g.radius * g.radius - exc * exc;
+			
+			sign = 1;
+			psiStart = Math.PI;
+			psiEnd = psiStart + Math.acos( rex / ( -2 * g.radius * exc ) );
+ 			endPoint = true;
+			slope = 'dy';
+			pos = [];
+			
+			makeFrontPos( cylinder_xyzSphereHole );
+			
+			posLen = pos.length;
+			
+			// generate complete front
+			
+			for ( let i = posLen - 6; i > -1; i -= 3 ) {
+				
+				pos.push( pos[ i ], -pos[ i + 1 ], pos[ i + 2 ] );
+				
+			}
+			
+			posLen = pos.length;
+			
+			for ( let i = 3 ; i < posLen * 2 - 3 ; i += 6 ) {
+				
+				pos.unshift( pos[ i ], pos[ i + 1 ], -pos[ i + 2 ] );
+				
+			}
+			
+			cylinder_writeFrontBuffer( ); 
+			
+		}
+		
+	}
+	
+	function cylinder_xyzSphereHole( ) {
+		
+		dsc = rex - 2 * g.radius * exc * Math.cos( psi );
+		
+		x = g.radius * Math.cos( psi );
+		y = Math.sqrt( dsc );
+		z = g.radius * Math.sin( psi );
+		
+	}
+	
+	function cylinder_makeCylinderHole( i ) {
+		
+		g.div4Adp = g.holes[ i ][ 1 ];
+		yOff = g.holes[ i ][ 2 ];
+		phi = -g.holes[ i ][ 3 ];
+		
+		unit = g.holes[ i ][ 5 ];
+		tilt = Math.PI / 2 - g.holes[ i ][ 6 ]; // NOTE! +PI/2..-PI/2 to 0..PI for calculation
+		side = g.holes[ i ][ 7 ] !== undefined ? g.holes[ i ][ 7 ] : '+'; // side: '+' default, '-', '+-' or '-+'
+		
+		switch ( unit ) {
+			case '%':
+				exc = g.holes[ i ][ 4 ] / 100 * g.radius; // percent value can be larger than 100
+				break;
+			case'd':
+				exc = g.holes[ i ][ 4 ] * g.d;
+				break;
+			case'v':
+				exc = g.holes[ i ][ 4 ];
+				break;
+			default: // like 'v' value
+				exc = g.holes[ i ][ 4 ];
+			
+		}
+		
+		g.detailAdp = g.div4Adp * 4;
+		g.rAdp = g.d / Math.sin( Math.PI / g.detailAdp ) / 2; // radius (deformed) cutting circle
+		
+		if ( g.radius + g.rAdp - exc > 0 ) { // cut
+			
+			sintilt = Math.sin( tilt );
+			sintilt = sintilt === 0 ? 0.000000001 : sintilt; // to prevent division by zero
+			costilt = Math.cos( tilt );
+			
+			r0 = Math.min( g.rAdp, g.radius );
+			r1 = Math.max( g.rAdp, g.radius );
+			
+			if ( r0 + exc > r1 ) { // a connected hole, side is ignored
+				
+				psiBound = Math.acos( ( r1 - exc ) / r0 );
+				
+				sign = 1;
+				psiStart = psiBound;
+				psiEnd = Math.PI * 2 - psiBound;
+				endPoint = false;
+				slope = 'dx';
+				pos = [];
+				
+				makeFrontPos( cylinder_xyzCylinderBoundOrHole );
+	 			
+				sign = -1;
+				psiStart = Math.PI * 2 - psiBound;
+				psiEnd = psiBound;
+				endPoint = false;
+				
+				makeFrontPos( cylinder_xyzCylinderBoundOrHole );
+				
+				// following code like cylinder_writeFrontBuffer( ) with extra rotations
+				
+				initFront( );
+				
+				posLen = pos.length;
+				
+				if ( g.rAdp > g.radius ) posReverse( );
+				
+				for ( let i = 0; i < posLen; i += 3 ) {
+					
+					xa = pos[ i     ]; 
+					ya = pos[ i + 1 ];
+					za = pos[ i + 2 ];
+					
+					if ( g.rAdp > g.radius ) {
+						
+						// rotate around z axis ( x to y direction )
+						xb = xa * costilt - ya * sintilt;
+						yb = xa * sintilt + ya * costilt;
+						
+						xa = xb;
+						ya = yb;
+						za = za + exc ;
+						
+					}
+					
+					// rotate around y axis
+					x = xa * Math.cos( phi ) - za * Math.sin( phi );
+					z = xa * Math.sin( phi ) + za * Math.cos( phi );
+					
+					y = ya + yOff;
+					
+					g.positions[ posIdx     ] = x;
+					g.positions[ posIdx + 1 ] = y;
+					g.positions[ posIdx + 2 ] = z;
+					
+					fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+					
+					minMaxValues( x, y, z );
+					
+					posIdx += 3;
+					
+				}
+				
+				boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+				
+				frontNo ++;
+				frontStock ++;
+				
+			}
+			
+			if ( r0 + exc <= r1 && ( side === '+' || side === '+-' || side === '-+' ) ) { // two separate holes (first: side === '+')
+				
+				sign = 1;
+				psiStart = -Math.PI;
+				psiEnd = Math.PI;
+				endPoint = false;
+				slope = 'dx';
+				pos = [];
+				
+				makeFrontPos( cylinder_xyzCylinderBoundOrHole );
+				
+				cylinder_writeFrontBuffer( );
+				
+			}
+			
+			if ( r0 + exc <= r1 && ( side === '-' || side === '+-' || side === '-+'  ) ) { // two separate holes (second: side === '-')
+				
+				sign = -1;
+				psiStart = Math.PI; 
+				psiEnd = -Math.PI;
+				endPoint = false;
+				slope = 'dx';
+				pos = []; // new separate fron
+				
+				makeFrontPos( cylinder_xyzCylinderBoundOrHole );
+				
+				cylinder_writeFrontBuffer( );
+				
+			}
+			
+		}
+		
+	}
+	
+	function cylinder_xyzCylinderBoundOrHole( ) { // uses r0, r1
+		
+		sinpsi = Math.sin( psi );
+		cospsi = Math.cos( psi );
+		dsc = r1 * r1 - ( exc  + r0 * cospsi ) * ( exc  + r0 * cospsi );
+		t = ( r0 * sinpsi * costilt + sign * Math.sqrt( dsc ) ) / sintilt;
+		
+		x = t * sintilt - r0 * sinpsi * costilt; 
+		y = t * costilt + r0 * sinpsi * sintilt;
+		z = -( exc + r0 * cospsi );
+		
+	}
+	
+	function makePointsFront( i ) {
+		
+		let jMax;
+		initFront( );
+		
+		switch ( g.surface ) {
+			
+			case 'polygon':
+			case 'outline':
+			case 'rectangle':
+			case 'circle':
+				jMax = ( i < 0 ? outline.length : g.holes[ i ].length ) / 2 + 1;
+				x1 = i < 0 ? outline[ 0 ] : g.holes[ i ][ 0 ] ;
+				y1 = 0;
+				z1 = i < 0 ? outline[ 1 ] : g.holes[ i ][ 1 ];
+			break;
+			
+			case 'sphere':
+			jMax = g.holes[ i ].length / 2 + 1;
+			theta = g.holes[ i ][ 0 ];
+			phi = g.holes[ i ][ 1 ]; 
+			
+			x1 = g.radius * Math.sin( theta ) * Math.cos( phi );
+			y1 = g.radius * Math.cos( theta );
+			z1 = -g.radius * Math.sin( theta ) * Math.sin( phi );
+			break;
+			
+			case 'cylinder':
+			jMax = g.holes[ i ].length / 2 + 1;
+			yOff =  g.holes[ i ][ 0 ];
+			phi = g.holes[ i ][ 1 ]; 	
+			
+			x1 = g.radius * Math.cos( phi );
+			y1 = yOff;
+			z1 = -g.radius * Math.sin( phi );
+			break;
+			
+		}
+		
+		for ( let j = 1; j < jMax; j ++ ) {
+			
+			g.positions[ posIdx     ] = x1;
+			g.positions[ posIdx + 1 ] = y1;
+			g.positions[ posIdx + 2 ] = z1;
+			
+			fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+			
+			minMaxValues( x1, y1, z1 );
+			
+			posIdx += 3;
+			
+			switch ( g.surface ) {
+			
+			case 'polygon':
+			case 'outline':
+			case 'rectangle':
+			case 'circle':
+				
+				x2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j : 0 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j : 0 ]; // 0 => connect to start
+				y2 = 0;
+				z2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j + 1 : 1 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j + 1 : 1 ] ;  // 1 => connect to start;
+				
+			break;
+				
+			case 'sphere':
+			theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
+			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
+			
+			x2 = g.radius *  Math.sin( theta ) * Math.cos( phi );
+			y2 = g.radius *  Math.cos( theta );
+			z2 = -g.radius * Math.sin( theta ) * Math.sin( phi );
+			break;
+			
+			case 'cylinder':
+			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
+			
+			x2 = g.radius * Math.cos( phi );
+			y2 = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
+			z2 = -g.radius * Math.sin( phi );
+			break;
+			
+			}
+			
+			dx = x2 - x1;
+			dy = y2 - y1;
+			dz = z2 - z1;
+			
+			len = length( dx, dy, dz );
+			
+			if ( len > g.d ) {
+				
+				count = Math.ceil( len / g.d );
+				
+				for ( let k = 1; k < count; k ++ ) {
+					
+					xp = x1 + k * dx / count;
+					yp = y1 + k * dy / count;
+					zp = z1 + k * dz / count;
+					
+					surfacePoint( );
+					
+					fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+					
+					minMaxValues( xp, yp, zp);
+					
+					posIdx += 3;
+					
+				}
+				
+			}
+			
+			x1 = x2;
+			y1 = y2;
+			z1 = z2;
+			
+		}
+		
+		boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+ 		
+		frontNo ++;
+		frontStock ++;
+		
+	}	
+	
+}
+
+exports.createInnerGeometry = createInnerGeometry;
+exports.buildInnerGeometry = buildInnerGeometry;
+
 // ............................ Implicit Surface (Triangulation)  ...................................
 
 function createImplicitSurface( isf, dx, dy, dz, xs, ys, zs, d, e, opt ) {
@@ -3078,7 +5165,6 @@ function buildImplicitSurface( ) {
 		let fronts = []; // all fronts
 		let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
 		let boundings = []; // fronts bounding boxes
-		let noCheck = []; // no distance check (point indices)
 		let smallAngles = []; // new angles < 1.5
 		
 		let unite = false;
@@ -3926,7 +6012,6 @@ function buildImplicitSurface( ) {
 		let fronts = []; // all fronts
 		let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
 		let boundings = []; // fronts bounding boxes
-		let noCheck = []; // no distance check (point indices)
 		let smallAngles = []; // new angles < 1.5
 		
 		let unite = false;
