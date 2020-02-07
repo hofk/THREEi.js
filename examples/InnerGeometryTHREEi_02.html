@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!-- -->
+<head>
+	<title> InnerGeometryTHREEi_02 </title>
+	<meta charset="utf-8" />
+</head>
+
+<body>
+	progress <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
+</body>
+
+<script src="../js/three.min.113.js"></script>
+<script src="../js/OrbitControls.js"></script>
+<script src="../js/THREEi.js"></script>
+
+<script>
+
+'use strict'
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.001, 1000 );
+camera.position.set( -1, 2, 8 );
+const renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setClearColor( 0xdedede, 1 );
+const container = document.createElement( 'div' );
+document.body.appendChild( container );
+container.appendChild( renderer.domElement ); 
+const controls = new THREE.OrbitControls( camera, renderer.domElement );
+const axesHelper = new THREE.AxesHelper( 1 );
+scene.add( axesHelper );
+
+// define inner geometry
+
+// rough side length of the triangles
+const d = 0.1;
+// division of the quarter circle
+const div4A = 12;
+const div4B = 19; 
+// excenter unit: '%' of the radius, 'd' factor to d, 'v' value
+const excAB =  4.5; // d
+
+// .......................................
+
+const gCylA = new THREE.BufferGeometry( );
+
+const parametersCylA = {
+	
+	surface: 'cylinder',
+	
+	d: d, // rough side length of the triangles
+	div4: div4A, // division of the quarter circle
+
+	btm: -2,
+	tiltBtm: -Math.PI / 4,
+	top:  2,
+	tiltTop: Math.PI / 4,
+	
+	holes: [
+	
+		// excentric (exc) hole to conect a sphere: [ 'sphere', div4Adp, y, phi, exc, unit ]
+		[ 'sphere', div4B, 0, 0, excAB, 'd' ], // side is ignored for connected hole
+		
+	]
+
+}
+
+gCylA.createInnerGeometry = THREEi.createInnerGeometry;
+gCylA.createInnerGeometry( parametersCylA );
+
+// .......................................
+
+const gSphB = new THREE.BufferGeometry( );
+
+const parametersSphB = {
+	
+	surface: 'sphere',
+	
+	d: d, // rough side length of the triangles
+	div4: div4B, // division of the quarter circle
+	
+	holes: [
+	
+		// excentric (exc) hole to conect a cylinder, [ 'cylinder', div4Adp, theta, phi, exc, unit, <optional: side> ]
+		[ 'cylinder', div4A,  0,  0,  excAB, 'd' ], // side is ignored for connected hole
+		
+		// circular hole, [ 'circle', div4Adp, theta, phi ]
+		[ 'circle', 10, -Math.PI / 3, 0],
+ 		
+	]
+	
+}
+
+gSphB.createInnerGeometry = THREEi.createInnerGeometry;
+gSphB.createInnerGeometry( parametersSphB );
+
+// create meshes
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0xcc00aa, wireframe: true, transparent: true, opacity: 0.99 } );
+//const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0x880066, transparent: true, opacity: 0.9 } );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x660044, transparent: true, opacity: 0.9 } );
+
+const construction = new THREE.Group();
+const cstrBas1 = new THREE.Group();
+const cstrBas2 = new THREE.Group();
+
+const meshCylA1 = new THREE.Mesh( gCylA, material1 );
+const meshCylA2 = new THREE.Mesh( gCylA, material2 );
+ 
+meshCylA1.rotation.y = Math.PI;
+meshCylA2.rotation.y = Math.PI;
+
+cstrBas1.add( meshCylA1 );
+cstrBas2.add( meshCylA2 );
+
+const meshSphB1 = new THREE.Mesh( gSphB, material1 );
+const meshSphB2 = new THREE.Mesh( gSphB, material2 );
+
+meshSphB1.position.x = -excAB * d; // excAB unit "d"
+meshSphB2.position.x = -excAB * d;
+
+cstrBas1.add( meshSphB1 );
+cstrBas2.add( meshSphB2 );
+
+const cstrBas3 = cstrBas1.clone();
+
+cstrBas3.rotation.z = -Math.PI / 2;
+
+cstrBas3.position.x = 2;
+cstrBas3.position.y = 2;
+ 
+const cstrBas4 = cstrBas2.clone();
+
+cstrBas4.position.x = 4;
+
+cstrBas4.rotation.x = Math.PI;
+cstrBas4.rotation.y = Math.PI;
+
+const cstrBas5 = cstrBas1.clone();
+
+cstrBas5.rotation.z = Math.PI / 2;
+
+cstrBas5.position.x = 2;
+cstrBas5.position.y = -2;
+
+construction.add( cstrBas1 );
+construction.add( cstrBas2 );
+construction.add( cstrBas3 );
+construction.add( cstrBas4 );
+construction.add( cstrBas5 );
+
+scene.add( construction );
+
+// .......................................
+
+const progressFactor = 0.5;
+const gProgress = gCylA;  // progress slider: choose a geometry 
+
+animate( );
+
+function animate( ) {
+	
+	gProgress.setDrawRange( 0, range.value * 3 * progressFactor );
+	
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+	controls.update( );
+	
+}
+
+</script>
+
+</html>
