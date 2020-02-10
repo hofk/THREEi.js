@@ -2978,6 +2978,16 @@ function createInnerGeometry( p ) {
 	
 	
 	function parametersToSurface( ) {
+			
+		if ( g.surface === 'circle' || g.surface === 'sphere' ) {
+			
+			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
+			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24 circle divisions
+			
+			g.detail = g.div4 * 4; // division of the great circle
+			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // radius, for external use as well
+			
+		}
 		
 		if ( g.surface === 'polygon' ) {
 			
@@ -2986,17 +2996,8 @@ function createInnerGeometry( p ) {
 			g.divN = p.divN !== undefined ? p.divN : 10;
 			
 			g.detail = g.polygonN * g.divN;
-			g.radius = g.d * g.detail / Math.PI / 2; // radius, for external use as well
+			g.radius = g.d * g.divN / Math.sin( Math.PI / g.polygonN ) / 2; // radius, for external use as well
 		
-		}
-		
-		if ( g.surface === 'outline' ) {
-			
-			g.d = p.d !== undefined ? p.d : 0.1;
-			g.points = p.points !== undefined ? p.points : [ 1,1, -1,1, -1,-1,  1,-1 ];
-			
-			g.detail = 8 / g.d;
-			
 		}
 		
 		if ( g.surface === 'rectangle' ) {
@@ -3009,13 +3010,12 @@ function createInnerGeometry( p ) {
 			
 		}
 		
-		if ( g.surface === 'circle' || g.surface === 'sphere' ) {
-		
-			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
-			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24 circle divisions
+		if ( g.surface === 'outline' ) {
 			
-			g.detail = g.div4 * 4; // division of the great circle
-			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // radius, for external use as well
+			g.d = p.d !== undefined ? p.d : 0.1;
+			g.points = p.points !== undefined ? p.points : [ 1,1, -1,1, -1,-1,  1,-1 ];
+			
+			g.detail = 8 / g.d;
 			
 		}
 		
@@ -3101,8 +3101,8 @@ function buildInnerGeometry( p ) {
 	let x0, y0, z0, x11, y11, z11; // points to memorize
 	let xa, ya, za, xb, yb; // actual point p for rotation around axes
 	let dx, dy, dz, dyzdx, dxzdy, sqlen0, sqlen1, posLen, h; // vector, length
-	let theta, phi, psi, psi0, dpsi, psiBound, psiStart, psiEnd, sinpsi, cospsi, sintilt, costilt, tantilt; // angles
-	let yOff, exc, tilt; // parameter
+	let theta, phi, psi, psi0, dpsi, psiBound, psiStart, psiEnd, sinpsi, cospsi, tilt, sintilt, costilt, tantilt; // angles
+	let yOff, exc; // parameter
 	let count, side, sign, reverseOrder, endPoint, slope, r0,r1, dsc, rex, connected, unit, t; ; // calculation interim values
 	
 	//  preparation
@@ -3200,7 +3200,7 @@ function buildInnerGeometry( p ) {
 		}
 		
 		/////////// DEBUG triangles ///////////////////////////////////////////////////////////////
-		// if ( stp > 100 ) break;	
+		 if ( stp > 30000 ) break;	
 		///////////////////////////////////////////////////////////////////////////////////////////
 		
 	}
@@ -3979,46 +3979,13 @@ function buildInnerGeometry( p ) {
 	
 	function defineBoundsAndHoles( ) {
 		
-		// define outline front for polygon
-		
-		if ( g.surface === 'polygon' ) {
-			
-			for ( let i = 0, psi = 0; i < g.polygonN; i ++, psi += Math.PI * 2 / g.polygonN ) {
-				
-				outline.push( g.radius * Math.cos( psi ), g.radius * Math.sin( psi ) );
-				
-			}
-			
-			makePointsFront( -1 ); // outline: parameter -1
-			
-		}
-		
-		// define front for surface: 'outline'
-		
-		if ( g.surface === 'outline' ) {
-			
-			outline = g.points;
-			
-			makePointsFront( -1 ); // outline: parameter -1
-			
-		}
-		
-		// define outline front for rectangle
-		
-		if ( g.surface === 'rectangle' ) {
-			
-			outline = [ g.divW * g.d / 2, g.divH * g.d / 2, -g.divW * g.d / 2, g.divH * g.d / 2, -g.divW * g.d / 2, -g.divH * g.d / 2, g.divW * g.d / 2, -g.divH * g.d / 2 ];
-			makePointsFront( -1 ); // outline: parameter -1
-			
-		}
-		
 		// define outline front for circle
 		
 		if ( g.surface === 'circle' ) {
 		
 			initFront( );
 			
-			for ( let i = 0, psi = 0; i < g.detail; i ++, psi += Math.PI * 2 / g.detail ) {
+			for ( let j = 0, psi = 0; j < g.detail; j ++, psi += Math.PI * 2 / g.detail ) {
 				
 				x = g.radius * Math.cos( psi );
 				y = 0;	
@@ -4042,14 +4009,117 @@ function buildInnerGeometry( p ) {
 			frontStock ++;
 			
 		}
+				
+		// define outline front for polygon
 		
-		// define holes fronts for polygon, outline, rectangle, circle
+		if ( g.surface === 'polygon' ) {
+			
+			for ( let j = 0, psi = 0; j < g.polygonN; j ++, psi += Math.PI * 2 / g.polygonN ) {
+				
+				outline.push( g.radius * Math.cos( psi ), g.radius * Math.sin( psi ) );
+				
+			}
+			
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
 		
-		if ( g.surface === 'polygon' || g.surface === 'outline' ||  g.surface === 'rectangle' || g.surface === 'circle') {
+		// define outline front for rectangle
+		
+		if ( g.surface === 'rectangle' ) {
+			
+			x0 = g.divW * g.d / 2;
+			z0 = g.divH * g.d / 2;
+			
+			outline = [  x0, z0,  -x0, z0,  -x0, -z0,   x0, -z0  ];
+			
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
+
+		// define front for surface: 'outline'
+		
+		if ( g.surface === 'outline' ) {
+			
+			outline = g.points;
+			
+			makePointsFront( -1 ); // outline: parameter -1
+			
+		}
+				
+
+		// define holes fronts for polygon, circle, rectangle, outline
+		
+		if (  g.surface === 'circle' || g.surface === 'polygon' || g.surface === 'rectangle' || g.surface === 'outline' ) {
 			
 			for ( let i = 0; i < g.holes.length; i ++ ) {
+			
+				if ( g.holes[ i ][ 0 ] === 'circle' ) { 
+					
+					// circular hole, [ 'circle', div4Adp, x, z ]
+					
+					r0 = g.d / Math.sin( Math.PI / g.holes[ i ][ 1 ] / 4 ) / 2; // radius
+					
+					initFront( );
+					
+					for ( let j = 0, psi = Math.PI * 2; j < g.holes[ i ][ 1 ] * 4; j ++, psi -= Math.PI / g.holes[ i ][ 1 ] / 2 ) {
+						
+						x = r0 * Math.cos( psi ) + g.holes[ i ][ 2 ];
+						y = 0;	
+						z = r0 * Math.sin( psi ) + g.holes[ i ][ 3 ];
+						
+						g.positions[ posIdx     ] = x;
+						g.positions[ posIdx + 1 ] = y;
+						g.positions[ posIdx + 2 ] = z;
+						
+						fronts[ frontNo ].push( { idx: posIdx / 3, ang: 0 } );
+						
+						minMaxValues( x, y, z );
+						
+						posIdx += 3;
+						
+					}
+					
+					boundings[ frontNo ].push( xmin, xmax, ymin, ymax, zmin, zmax );
+					
+					frontNo ++;
+					frontStock ++;					
+							
+					
+				} else	if ( g.holes[ i ][ 0 ] === 'polygon' ) {
+					
+					// polygonal hole, [ 'polygon', polygonNAdp, divNAdp, x, z ],
+									
+					r0 =  g.d * g.holes[ i ][ 2 ] / Math.sin( Math.PI / g.holes[ i ][ 1 ] ) / 2; // radius
+					
+					for ( let j = 0, psi = Math.PI * 2 ; j < g.holes[ i ][ 1 ]; j ++, psi -= Math.PI * 2 / g.holes[ i ][ 1 ] ) {
+					
+						outline.push( r0 * Math.cos( psi ) + g.holes[ i ][ 3 ], r0 * Math.sin( psi ) + g.holes[ i ][ 4 ] );
+					
+					}
 				
-				makePointsFront( i ); // points: [ x, z, ... ]
+					makePointsFront( -1 ); // outline: parameter -1
+					
+					
+				} else if ( g.holes[ i ][ 0 ] === 'rectangle' ) {
+					
+					// rectangle hole, [ 'rectangle', divWAdp, divHAdp, x, z ]
+					
+					x0 = g.holes[ i ][ 1 ] * g.d / 2;
+					z0 = g.holes[ i ][ 2 ] * g.d / 2;
+					
+					x11 = g.holes[ i ][ 3 ];
+					z11 = g.holes[ i ][ 4 ];
+					
+ 					outline = [ x0 + x11, -z0 + z11,  -x0 + x11, -z0 + z11,  -x0 + x11, z0 + z11,  x0 + x11, z0 + z11 ];
+					
+					makePointsFront( -1 ); // outline: parameter -1
+					
+				} else {
+					
+					makePointsFront( i ); // points: [ x, z, ... ]
+				
+				}
 				
 			}
 			
@@ -4928,11 +4998,12 @@ function buildInnerGeometry( p ) {
 		initFront( );
 		
 		switch ( g.surface ) {
-			
+		
+			case 'circle':			
 			case 'polygon':
+			case 'rectangle':			
 			case 'outline':
-			case 'rectangle':
-			case 'circle':
+
 				jMax = ( i < 0 ? outline.length : g.holes[ i ].length ) / 2 + 1;
 				x1 = i < 0 ? outline[ 0 ] : g.holes[ i ][ 0 ] ;
 				y1 = 0;
@@ -4975,33 +5046,33 @@ function buildInnerGeometry( p ) {
 			
 			switch ( g.surface ) {
 			
-			case 'polygon':
-			case 'outline':
-			case 'rectangle':
-			case 'circle':
+				case 'circle':			
+				case 'polygon':
+				case 'rectangle':
+				case 'outline':
+					
+					x2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j : 0 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j : 0 ]; // 0 => connect to start
+					y2 = 0;
+					z2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j + 1 : 1 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j + 1 : 1 ] ;  // 1 => connect to start;
+					
+				break;
+					
+				case 'sphere':
+				theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
+				phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
 				
-				x2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j : 0 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j : 0 ]; // 0 => connect to start
-				y2 = 0;
-				z2 = i < 0 ? outline[ j < jMax - 1 ? 2 * j + 1 : 1 ] : g.holes[ i ][ j < jMax - 1 ? 2 * j + 1 : 1 ] ;  // 1 => connect to start;
+				x2 = g.radius *  Math.sin( theta ) * Math.cos( phi );
+				y2 = g.radius *  Math.cos( theta );
+				z2 = -g.radius * Math.sin( theta ) * Math.sin( phi );
+				break;
 				
-			break;
+				case 'cylinder':
+				phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
 				
-			case 'sphere':
-			theta = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
-			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
-			
-			x2 = g.radius *  Math.sin( theta ) * Math.cos( phi );
-			y2 = g.radius *  Math.cos( theta );
-			z2 = -g.radius * Math.sin( theta ) * Math.sin( phi );
-			break;
-			
-			case 'cylinder':
-			phi = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 + 1 : 1 ]; // 1 => connect to start
-			
-			x2 = g.radius * Math.cos( phi );
-			y2 = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
-			z2 = -g.radius * Math.sin( phi );
-			break;
+				x2 = g.radius * Math.cos( phi );
+				y2 = g.holes[ i ][ j < g.holes[ i ].length / 2 ? j * 2 : 0 ]; // 0 => connect to start
+				z2 = -g.radius * Math.sin( phi );
+				break;
 			
 			}
 			
@@ -5043,6 +5114,8 @@ function buildInnerGeometry( p ) {
  		
 		frontNo ++;
 		frontStock ++;
+		
+		outline = [];
 		
 	}	
 	
