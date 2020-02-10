@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<!-- -->
+<head>
+	<title> InnerGeometryTHREEi_03 </title>
+	<meta charset="utf-8" />
+</head>
+<body>
+	progress <input type="range" id="range"  min="0" max="10000" value="5000" step="1" style="width: 80%;" >
+</body>
+
+<script src="../js/three.min.113.js"></script>
+<script src="../js/OrbitControls.js"></script>
+<script src="../js/THREEi.js"></script>
+
+<script>
+
+'use strict'
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.01, 1000 );
+camera.position.set( 12, 22, 32 );
+const renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setClearColor( 0xdedede, 1 );
+const container = document.createElement( 'div' );
+document.body.appendChild( container );
+container.appendChild( renderer.domElement ); 
+const controls = new THREE.OrbitControls( camera, renderer.domElement );
+const axesHelper = new THREE.AxesHelper( 1 );
+scene.add( axesHelper );
+
+// ....................................
+
+const gPly = new THREE.BufferGeometry( );
+
+const parametersPly = {
+
+	surface: 'polygon', // or other planes ---> rectangle (divW: divH:), circle(div4) 
+	
+	d: 0.1, // rough side length of the triangles
+	polygonN: 12,
+	divN: 10,
+	
+	holes: [
+		
+		// polygonal hole, [ 'polygon',polygonNAdp,divNAdp, x, z ],
+		[ 'polygon', 7, 4, 0.5, 0.5 ],
+		
+		// circular hole, [ 'circle' div4Adp, x, z ],
+		[ 'circle', 5, -0.6, -0.6 ],
+		
+		// rectangle hole, [ 'rectangle', divWAdp, divHAdp, x, z ]
+		[ 'rectangle', 7, 9, -1.2, 0.6 ],
+		
+		// points hole,: array of points x, z, ...  (last point is connected to first)	
+		//[ 0.9,-0.9,  0.2,-0.9,  0.6,-0.4,  0.3,-0.1, 0.9,-0.1, 0.7,-0.6 ]
+		 [ 0.9,-0.9,  0.2,-0.9,  0.3,-0.1 ]
+				
+	]
+}
+
+THREEi.createInnerGeometry.call( gPly, parametersPly );
+
+// .......................................
+
+const gCir = new THREE.BufferGeometry( );
+
+const parametersCir = {
+
+	surface: 'circle', 
+	
+	d: 0.25, // rough side length of the triangles
+	div4: 28, // division of the quarter of the circle
+	
+	holes: [
+	
+		// circular hole, ['circle', div4Adp, x, z ],
+		[ 'circle', 10,  -1.4, -0.6 ],
+		
+		// polygonal hole, ['polygon', polygonNAdp, divNAdp, x, z ],
+		[ 'polygon', 6, 4, 1.6, -0.5 ],
+		
+		// points hole,: array of points x, z, ...  (last point is connected to first)		
+		[ 2,2,  2,0.5,  1,0.6 ]
+				
+	]
+}
+
+THREEi.createInnerGeometry.call( gCir, parametersCir );
+
+// .......................................
+
+const gRta = new THREE.BufferGeometry( );
+
+const parametersRta = {
+
+	surface: 'rectangle', 
+	
+	d: 0.1, // rough side length of the triangles
+	divW: 50,
+	divH: 30,
+	
+	holes: [
+	
+		// polygonal hole, [ 'polygon',polygonNAdp,divNAdp, x, z ],
+		[ 'polygon', 7, 4, 0.5, 0.5 ],
+		
+		// circular hole, [ 'circle' div4Adp, x, z ],
+		[ 'circle', 5, -0.6, -0.6 ],
+		
+		// rectangle hole, [ 'rectangle', divWAdp, divHAdp, x, z ]
+		[ 'rectangle', 7, 9, -1.2, 0.6 ],
+		
+		// points hole,: array of points x, z, ...  (last point is connected to first)		
+		[ 1,-1,  0,-1,  0.4,-0.1, 2,-0.4, 0.8,-0.7 ]
+				
+	]
+}
+
+THREEi.createInnerGeometry.call( gRta, parametersRta );
+
+// .......................................
+
+
+const gOtl = new THREE.BufferGeometry( );
+	
+// star parameters
+
+const N = 6;
+const R = 12.5;
+const dR = 4;
+
+const n = 12;
+const r = 1.5; 
+const dr = 0.25;
+let xSt, zSt;
+
+const pts = [];	
+const holes = [];
+let starHole = [];
+
+makeStars(); // star holes
+
+const parametersOtl = {
+
+	surface: 'outline',
+	
+	d: 0.25, // rough side length of the triangles
+	points: pts,
+	
+	holes: holes
+	
+}
+
+THREEi.createInnerGeometry.call( gOtl, parametersOtl );
+
+// .......................................
+
+const gSph = new THREE.BufferGeometry( );
+ 
+const parametersSph = {
+
+	// excenter unit: '%' of the radius, 'd' factor to d, 'v' value  
+	
+	surface: 'sphere',
+	
+	d: 0.15, // rough side length of the triangles
+	div4: 29, // division of the quarter of the great circle (orthodrome)
+		
+	holes: [
+	
+		// circular hole, [ 'circle', div4Adp, theta, phi ], div4Adp <= div4
+		[ 'circle', 10,  1.85, -0.75 ],
+		[ 'circle', 12,  2.77,  1.81 ],		
+		[ 'circle', 7, -0.66,     0 ],
+		
+		// excentric (exc) hole to conect a cylinder, [ 'cylinder', div4Adp, theta, phi, exc, unit, <optional: side> ]		
+		[ 'cylinder', 4,  0.2, 3.1,   2.45, 'v' ],
+		[ 'cylinder', 3, -0.4, 2.3, 101.5,  '%' ],
+		[ 'cylinder', 9,    0,   0,  12.71, 'd', '+-' ],
+		
+		// points hole,: array of points theta, phi, ...  (last point is connected to first)
+		[ 1,1,  1.4,1.1,  1.4,1.3, 1,1.3 ]
+	
+	]
+
+}
+
+THREEi.createInnerGeometry.call( gSph, parametersSph );
+
+// .......................................
+
+const gCyl = new THREE.BufferGeometry( );
+
+const parametersCyl = {
+
+	// excenter unit: '%' of the radius, 'd' factor to d, 'v' value
+		
+	surface: 'cylinder',
+	
+	d: 0.14, // rough side length of the triangles
+	div4: 17, // division of the quarter circle
+
+	geoBtm: 'plane', // 'plane', 'sphere', 'cylinder' solid to be adapted
+	btm:  -4,
+	div4Btm: 34, // division bottom adaptation, (to quarter, >= div4)
+	phiBtm: 0.77, // rotation of adaptive-deformed circle (Bottom)	
+	excBtm: 1.2,
+	excUnitBtm: 'v',
+	tiltBtm: 0.5, // tilt of bottom adaption ( -PI/2 < tilt < PI/2 )
+
+	geoTop: 'cylinder', //  'plane', 'sphere', 'cylinder' solid to be adapted
+	top: 2,
+	div4Top: 44, // division top adaptation, (to quarter, >= div4)
+	phiTop: 0.77, // rotation of adaptive-deformed circle (Top)
+	excTop: 148,
+	excUnitTop: '%',
+	tiltTop: 0.5, // tilt of top adaption ( -PI/2 < tilt < PI/2 )
+
+	holes: [
+		
+		// excentric (exc) hole to conect a sphere:  [ 'sphere', div4AdpSphere, y, phi, exc, unit ]	
+		[ 'sphere', 16, -1.11, 0,  2.686, 'v' ],
+		
+		// excentric (exc) hole to conect a cylinder: [ 'cylinder', div4AdpCylinder, y, phi, exc, unit, tilt, <optional: side> ]
+		[ 'cylinder', 8,  -2.2, 1.57, 52.898, '%', -0.22, '+-' ], // side is ignored for connected hole
+		
+		// points hole,: array of points y, phi, ...  (last point is connected to first)
+		[ 0.15,0.45, 0.5,0.9, 0.8,0.6, 0.75,-0.2, 0.1,-0.15  ]
+		
+	]
+ 	
+}
+
+THREEi.createInnerGeometry.call( gCyl, parametersCyl );
+
+//.....................................
+
+const material1 = new THREE.MeshBasicMaterial( { side: THREE.DoubleSide, color: 0x000000, wireframe: true, transparent: true, opacity: 0.99 } );
+const material2 = new THREE.MeshBasicMaterial( { side: THREE.FrontSide, color: 0xffcc66, transparent: true, opacity: 0.9 } );
+
+const meshPly1 = new THREE.Mesh( gPly, material1 );
+scene.add( meshPly1 );
+const meshPly2 = new THREE.Mesh( gPly, material2 );
+scene.add( meshPly2 );
+meshPly1.position.y = 13.5;
+meshPly2.position.y = 13.5;
+
+const meshCir1 = new THREE.Mesh( gCir, material1 );
+scene.add( meshCir1 );
+const meshCir2 = new THREE.Mesh( gCir, material2 );
+scene.add( meshCir2 );
+meshCir1.position.x = -13;
+meshCir2.position.x = -13;
+meshCir1.position.y = -8;
+meshCir2.position.y = -8;
+
+const meshRta1 = new THREE.Mesh( gRta, material1 );
+scene.add( meshRta1 );
+const meshRta2 = new THREE.Mesh( gRta, material2 );
+scene.add( meshRta2 );
+meshRta1.position.x = 13;
+meshRta2.position.x = 13;
+meshRta1.position.y = -8;
+meshRta2.position.y = -8;
+
+const meshOtl1 = new THREE.Mesh( gOtl, material1 );
+scene.add( meshOtl1 );
+const meshOtl2 = new THREE.Mesh( gOtl, material2 );
+scene.add( meshOtl2 );
+meshOtl1.rotation.x =Math.PI / 2;
+meshOtl2.rotation.x =Math.PI / 2;
+
+const meshSph1 = new THREE.Mesh( gSph, material1 );
+scene.add( meshSph1 );
+const meshSph2 = new THREE.Mesh( gSph, material2 );
+scene.add( meshSph2 );
+meshSph1.position.x = 13;
+meshSph2.position.x = 13;
+meshSph1.position.y = 6;
+meshSph2.position.y = 6;
+
+const meshCyl1 = new THREE.Mesh( gCyl, material1 );
+scene.add( meshCyl1 );
+const meshCyl2 = new THREE.Mesh( gCyl, material2 );
+scene.add( meshCyl2 );
+meshCyl1.position.x = -13;
+meshCyl2.position.x = -13;
+meshCyl1.position.y = 7;
+meshCyl2.position.y = 7;
+
+let progressFactor = 2;
+let gProgress = gOtl;
+
+animate( );
+
+function makeStars( ) {
+	
+	// outline
+	
+	for ( let i = 0, psi = 0, sign = 1; i <  2 * N; i ++, psi += Math.PI / N, sign = -sign ) {
+					
+		pts.push( ( R + sign * dR ) * Math.cos( psi ) , ( R + sign * dR ) * Math.sin( psi ) );
+					
+	}
+	
+	// star holes
+	
+	 for ( let phi = 0; phi < Math.PI * 2 ; phi += Math.PI * 3 / N ) {
+	 
+		starHole = [];
+	
+		xSt = 0.5 * R * Math.cos( phi );
+		zSt = 0.5 * R * Math.sin( phi );
+	
+		for ( let j = 0, psi = 0, sign = 1; j <  2 * n; j ++, psi += Math.PI / n, sign = -sign ) {
+		
+			starHole.push( xSt + ( r + sign * 1.5 * dr ) * Math.cos( psi ) , zSt + ( r + sign * 1.5 * dr ) * Math.sin( -psi ) ); // .sin: -psi
+						
+		}
+		
+		holes.push( starHole );
+		
+	}
+	
+	// center star
+	
+	starHole = [];
+	
+	
+	for ( let j = 0, psi = 0, sign = 1; j <  2 * n + 2 ; j ++, psi += Math.PI * 2 / ( 2 * n + 2 ), sign = -sign ) {
+			
+		starHole.push(  ( 2 * r + sign * 3 * dr ) * Math.cos( psi ) , ( 2 * r + sign * 3 * dr ) * Math.sin( -psi ) ); // .sin: -psi
+						
+	}
+		
+	holes.push( starHole );
+	
+}	
+
+// ....................................
+
+function animate( ) {
+
+	gProgress.setDrawRange( 0, range.value * 3 * progressFactor );
+	 
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+	controls.update( );
+	
+}
+
+// ....................................
+
+</script>
+
+</html>
