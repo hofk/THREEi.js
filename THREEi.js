@@ -114,7 +114,7 @@ function buildSphereWithHolesObj( ) {
 	let partFront = []; // separated part of the active front (to split)
 	let insertFront = []; // new front points to insert into active front
 	let fronts = []; // all fronts
-	let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+	let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 	let boundings = []; // fronts bounding boxes
 	let smallAngles = []; // new angles < 1.5
 	
@@ -1054,7 +1054,7 @@ function buildSphereWithHoles( ) {
 	let partFront = []; // separated part of the active front
 	let insertFront = []; // new front points to insert into active front
 	let fronts = []; // all fronts
-	let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+	let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 	let boundings = []; // fronts bounding boxes  
 	let smallAngles = []; // new angles < 1.5
 	
@@ -2075,7 +2075,7 @@ function buildCylinderWithHoles( ) {
 	let partFront = []; // separated part of the active front (to split)
 	let insertFront = []; // new front points to insert into active front
 	let fronts = []; // all fronts
-	let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+	let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 	let boundings = []; // fronts bounding boxes
 	let smallAngles = []; // new angles < 1.5
 	
@@ -3124,7 +3124,7 @@ function buildInnerGeometry( p ) {
 	let partFront = []; // separated part of the active front (to split)
 	let insertFront = []; // new front points to insert into active front
 	let fronts = []; // all fronts
-	let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+	let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 	let boundings = []; // fronts bounding boxes
 	let smallAngles = []; // new angles < 1.5
 	
@@ -3200,7 +3200,7 @@ function buildInnerGeometry( p ) {
 		}
 		
 		/////////// DEBUG triangles ///////////////////////////////////////////////////////////////
-		 if ( stp > 30000 ) break;	
+		// if ( stp > 100 ) break;	
 		///////////////////////////////////////////////////////////////////////////////////////////
 		
 	}
@@ -5236,7 +5236,7 @@ function buildImplicitSurface( ) {
 		let partFront = []; // separated part of the active front (to split)
 		let insertFront = []; // new front points to insert into active front
 		let fronts = []; // all fronts
-		let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+		let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 		let boundings = []; // fronts bounding boxes
 		let smallAngles = []; // new angles < 1.5
 		
@@ -6083,7 +6083,7 @@ function buildImplicitSurface( ) {
 		let partFront = []; // separated part of the active front (to split)
 		let insertFront = []; // new front points to insert into active front
 		let fronts = []; // all fronts
-		let partBounds = []; // bounding box of partFront [ xmin, xmax, ymin, ymax, zmin, zmax ]
+		let partBounds = []; // bounding box of partFront [ xmin, ymin, zmin, xmax, ymax, zmax ]
 		let boundings = []; // fronts bounding boxes
 		let smallAngles = []; // new angles < 1.5
 		
