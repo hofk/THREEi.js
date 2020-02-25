@@ -3024,6 +3024,7 @@ function createInnerGeometry( p ) {
 			g.d = p.d !== undefined ? p.d : 2 * Math.sin( Math.PI / 24 ); // to g.div4 default
 			g.div4 = p.div4 !== undefined ? p.div4 : 6; // 6 * 4 = 24  divisions of associated cylinder
 			g.tilt = p.tilt !== undefined ? p.tilt : 0; // tilt of adaption to the associated cylinder
+			g.cap = p.cap !== undefined ? p.cap : 'btm';  // orientation for bottom
 			
 			g.detail = g.div4 * 4; // division of the associated cylinder circle
 			g.radius = g.d / Math.sin( Math.PI / g.detail ) / 2; // equals ellipse minor semi-axis b for external use as well
@@ -4156,8 +4157,10 @@ function buildInnerGeometry( p ) {
 		if ( g.surface === 'planecap' ) {
 			
 			tilt = g.tilt;
+			
 			sign =  -1;
-			yOff = 0;  //don't change, place the planecap mesh instead
+			
+			yOff = 0; //don't change, place the planecap mesh instead
 			phi = 0; //	don't change, rotate the planecap mesh instead
 			
 			cylinder_makePlaneBound( );
@@ -4599,8 +4602,10 @@ function buildInnerGeometry( p ) {
 		g.detailAdp = g.detail; // identical division
 		
 		// sign is set above
+		
 		psiStart = sign < 0 ? Math.PI * 2 : 0;
 		psiEnd = sign < 0 ? 0 : Math.PI * 2;
+		
 		endPoint = false;
 		slope = 'dy';
 		pos = [];
@@ -4609,7 +4614,7 @@ function buildInnerGeometry( p ) {
 		
 		posLen = pos.length;
 		
-		if ( sign < 0 ) posReverse( );
+		if ( sign < 0 && g.cap !== 'btm' ) posReverse( ); // g.cap is undefined for cylinder
 		
 		cylinder_writeFrontBuffer( );
 		
@@ -4619,7 +4624,9 @@ function buildInnerGeometry( p ) {
 		
 		x = g.radius * Math.cos( psi );
 		y = g.radius * Math.cos ( psi ) * tantilt;
-		z = g.radius * Math.sin( -sign * psi );
+		z = g.radius * Math.sin( sign * psi );
+
+		if ( g.cap !== 'btm' ) z = -z; // g.cap is undefined for cylinder
 		
 	}
 	
